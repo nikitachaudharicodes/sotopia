@@ -105,6 +105,10 @@ class BaseEnvironmentProfile(LLMBaseModel):
         default_factory=lambda: None,
         description="Optional metadata for structured social games (rulebooks, config paths, etc.).",
     )
+    game_metadata: dict[str, Any] | None = Field(
+        default_factory=lambda: None,
+        description="Optional metadata for structured social games (rulebooks, config paths, etc.).",
+    )
     tag: str = Field(
         default="",
         description="The tag of the environment, used for searching, could be convenient to document environment profiles from different works and sources",
