@@ -1,0 +1,105 @@
+{
+  "scenario": "Cactus Gulch, spring 1884. The town celebrates its 20th anniversary at the Silver Dollar Saloon, but Zeke Calhoun has been found murdered in the stables. Railroad negotiations, land disputes, and dark secrets threaten to tear the town apart. Who killed Zeke? Who will control Fat Bull Range? And will the ancient Indian burial grounds be desecrated?",
+  "players": [
+    {
+      "first_name": "Lucy",
+      "last_name": "Calhoun",
+      "role": "Lucy Calhoun",
+      "public_role": "Zeke's Daughter",
+      "age": 19,
+      "pronouns": "she/her",
+      "goal": "Avenge your father's death, protect the Indian burial ground, and uncover what's troubling Dan.",
+      "secret": "You hold half of Zeke's silver discovery map (with Three Fingers Rock)."
+    },
+    {
+      "first_name": "Mel",
+      "last_name": "Easton",
+      "role": "Mel Easton",
+      "public_role": "South West Rail Representative",
+      "age": 34,
+      "pronouns": "they/them",
+      "goal": "Close the railroad deal ethically, honor Zeke's agreement, and expose Clem's dirty tactics.",
+      "secret": "You agreed to pay Zeke $18,000 and reroute around the burial ground."
+    },
+    {
+      "first_name": "Elijah",
+      "last_name": "Entwhistle",
+      "role": "Elijah Entwhistle",
+      "public_role": "Traveling Preacher",
+      "age": 42,
+      "pronouns": "he/him",
+      "goal": "Avenge your brother Zeke, reveal your true identity to Lucy, recover the real map, and secure Fat Bull Range for her.",
+      "secret": "You're really Jake Calhoun, Zeke's gunslinger brother with LOVE/HATE tattoos."
+    },
+    {
+      "first_name": "Dan",
+      "last_name": "Fairweather",
+      "role": "Dan Fairweather",
+      "public_role": "Deputy Sheriff",
+      "age": 26,
+      "pronouns": "he/him",
+      "goal": "Comfort Lucy, watch Slick O'Hare, help solve Zeke's murder, and maybe get Lucy to wear a skirt.",
+      "secret": "You're madly in love with Lucy Calhoun and have half of Zeke's real map (Dead Dog Ravine)."
+    },
+    {
+      "first_name": "Doc",
+      "last_name": "Faraday",
+      "role": "Doc Faraday",
+      "public_role": "Gambler & Doctor",
+      "age": 48,
+      "pronouns": "he/him",
+      "goal": "Get at least $22,000 for Fat Bull Range, keep your cheating secret, and retrieve the marked cards from Blaise.",
+      "secret": "You used marked cards to win Fat Bull Range from Zeke."
+    },
+    {
+      "first_name": "Slick",
+      "last_name": "O'Hare",
+      "role": "Slick O'Hare",
+      "public_role": "Ranch Hand",
+      "age": 35,
+      "pronouns": "he/him",
+      "goal": "Hide your true identity (Saul Jackson), avoid blame for Zeke's death, help Clem, and find the silver map.",
+      "secret": "Your real name is Saul Jackson and you're a hired killer. You helped beat up Zeke before he died."
+    },
+    {
+      "first_name": "Clem",
+      "last_name": "Parham",
+      "role": "Clem Parham",
+      "public_role": "Mid West Rail Representative",
+      "age": 40,
+      "pronouns": "they/them",
+      "goal": "Secure the railroad deal for Mid West Rail, pin Zeke's death on Slick/Saul if needed, and leverage Judge Paulson.",
+      "secret": "You're blackmailing Judge Paulson and Saul Jackson works as your hired killer. You helped kill Zeke."
+    },
+    {
+      "first_name": "John",
+      "last_name": "Paulson",
+      "role": "John Paulson",
+      "public_role": "Town Judge",
+      "age": 55,
+      "pronouns": "he/him",
+      "goal": "Deliver just judgment on Fat Bull Range, keep your past secret, and ensure law prevails despite Clem's blackmail.",
+      "secret": "You were involved in major land swindles back East and fled to escape justice."
+    },
+    {
+      "first_name": "Runs Like a",
+      "last_name": "Deer",
+      "role": "Runs Like a Deer",
+      "public_role": "Indian Nursemaid",
+      "age": 45,
+      "pronouns": "she/her",
+      "goal": "Protect the Indian burial grounds at all costs, keep Lucy safe, and avoid being blamed for Zeke's death.",
+      "secret": "You found Zeke's body and cut the ropes binding him before realizing he was already dead."
+    },
+    {
+      "first_name": "Blaise",
+      "last_name": "Sadler",
+      "role": "Blaise Sadler",
+      "public_role": "Saloonkeeper",
+      "age": 50,
+      "pronouns": "she/her",
+      "goal": "Get $2000 for retirement by selling evidence, trading your fake map, or finding a rich husband.",
+      "secret": "You have Doc's three marked cards and half of Zeke's fake map. You're bitter Zeke rejected you."
+    }
+  ]
+}

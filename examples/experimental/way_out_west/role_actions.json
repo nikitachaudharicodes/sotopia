@@ -1,0 +1,416 @@
+{
+  "roles": {
+    "Lucy Calhoun": {
+      "name": "Lucy Calhoun",
+      "team": "locals",
+      "description": "Daughter of Zeke Calhoun, a tomboyish young woman raised tough and independent. Loyal to her father and Runs Like a Deer, determined to see justice done.",
+      "goal_prompt": "Avenge your father's death by finding his killer. Protect the Indian burial ground at Fat Bull Range from being desecrated. Find out what's troubling Deputy Dan Fairweather. You have half of a map to Zeke's silver discovery.",
+      "default_actions": ["speak", "accuse", "negotiate", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "interrogate", "accuse", "share_clue", "none"],
+        "judgment": ["speak", "testify", "support", "oppose", "none"],
+        "high_noon": ["speak", "shoot", "duel", "none"]
+      },
+      "initial_state": {
+        "items": ["half_map_three_fingers_rock", "revolver"],
+        "money": 11,
+        "abilities": {
+          "judge_character": {
+            "uses": 3,
+            "effect": "Force another player to reveal their Secret."
+          },
+          "sharpshooting": {
+            "uses": 3,
+            "effect": "When dueling/shooting, you win on tie in addition to wins."
+          },
+          "gossip": {
+            "uses": 3,
+            "effect": "Ask another player about one of their 'Other People' entries and reveal one of your own in return."
+          }
+        },
+        "secrets": ["You hold half of Zeke's silver discovery map (including Three Fingers Rock)."],
+        "clues": ["Zeke was close to clinching a deal with South West Rail when he died."],
+        "relationships": {
+          "Runs Like a Deer": "Like a mother to you",
+          "Dan Fairweather": "Childhood friend acting strange",
+          "Elijah Entwhistle": "Strangely familiar preacher"
+        }
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    },
+
+    "Mel Easton": {
+      "name": "Mel Easton",
+      "team": "out_of_towners",
+      "description": "South West Rail representative, genteel and ethical business person, determined to close the railroad deal fairly while protecting the burial ground.",
+      "goal_prompt": "Express sympathies to Lucy and negotiate to honor Zeke's deal ($18,000 for Fat Bull Range, rerouting around burial ground). Expose Clem Parham's devious tactics. Contact head office via telegraph for your budget authorization.",
+      "default_actions": ["speak", "negotiate", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "interrogate", "negotiate", "share_clue", "none"],
+        "judgment": ["speak", "testify", "oppose", "support", "none"],
+        "high_noon": ["speak", "shoot", "duel", "none"]
+      },
+      "initial_state": {
+        "items": [],
+        "money": 120,
+        "abilities": {
+          "success": {
+            "uses": 3,
+            "effect": "Turn a failed or tied rock-paper-scissors challenge into a success, even if you're not directly involved."
+          },
+          "judge_character": {
+            "uses": 3,
+            "effect": "Force another player to reveal their Secret."
+          },
+          "share_knowledge": {
+            "uses": 3,
+            "effect": "Show your Clue to another player; they must show you theirs."
+          }
+        },
+        "secrets": ["You agreed a deal with Zeke to pay $18,000 for Fat Bull Range and avoid the Indian burial ground."],
+        "clues": ["Judge Paulson has been acting strange lately, and you are worried he may decide against Zeke."],
+        "relationships": {
+          "Doc Faraday": "Must negotiate in case he owns the land",
+          "Slick O'Hare": "Suspicious - that scar looks familiar, maybe called 'Saul'?",
+          "Clem Parham": "Your bitter rival who often beats you",
+          "Blaise Sadler": "Rumored to have marked cards proving Doc cheated"
+        }
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    },
+
+    "Elijah Entwhistle": {
+      "name": "Elijah Entwhistle",
+      "team": "locals",
+      "description": "Traveling preacher persona, but secretly Jake Calhoun—Zeke's gunslinger brother with LOVE/HATE tattoos on his hands, in town to protect his brother.",
+      "goal_prompt": "Avenge your brother Zeke's death - find the killer and make them pay in blood. Reveal your true identity as Jake Calhoun to Lucy. Find the real silver map (you have half of the FAKE map). Ensure Fat Bull Range returns to Lucy. You suspect Clem Parham.",
+      "default_actions": ["speak", "intimidate", "accuse", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "interrogate", "intimidate", "share_clue", "none"],
+        "judgment": ["speak", "testify", "support", "oppose", "none"],
+        "high_noon": ["speak", "shoot", "duel", "none"]
+      },
+      "initial_state": {
+        "items": ["half_map_red_mule_point_FAKE", "revolver"],
+        "money": 30,
+        "abilities": {
+          "flesh_wound": {
+            "uses": 3,
+            "effect": "After being defeated in combat, negate the wound - you're not injured and may take an action. Does not work against poison."
+          },
+          "sharpshooting": {
+            "uses": 3,
+            "effect": "When shooting, you hit on win or tie instead of only win."
+          },
+          "intimidate": {
+            "uses": 3,
+            "effect": "Speak intimidatingly to force another character to reveal their Secret."
+          }
+        },
+        "secrets": ["You are really Jake Calhoun, Zeke's brother and Lucy's uncle. You're a feared gunslinger for hire. Zeke gave you half of a FAKE map."],
+        "clues": ["The half map Zeke gave to Blaise is fake - only you and Zeke knew this."],
+        "relationships": {
+          "Kalamata Kate": "Fell in love during secret afternoon dalliance",
+          "Ol' Barr": "Might know about railroad companies",
+          "Slick O'Hare": "Clem's sidekick - watch your back",
+          "Clem Parham": "Dirty rattlesnake who threatened Zeke",
+          "Blaise Sadler": "Has evidence Doc cheated - trade your fake map?"
+        }
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    },
+
+    "Dan Fairweather": {
+      "name": "Dan Fairweather",
+      "team": "locals",
+      "description": "Slow and honest deputy sheriff, loyal to Sheriff Blane. Madly in love with Lucy Calhoun. Has half of Zeke's real map.",
+      "goal_prompt": "Comfort Lucy in her grief. Keep close eye on Slick O'Hare per Sheriff's orders. Help investigate Zeke's murder. Decide what to do with your half of the map. Get Lucy to wear a skirt to the dance. You saw Runs Like a Deer with a knife near the stables.",
+      "default_actions": ["speak", "interrogate", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "interrogate", "arrest", "share_clue", "none"],
+        "judgment": ["speak", "testify", "arrest", "make_judgment", "none"],
+        "high_noon": ["speak", "shoot", "duel", "none"]
+      },
+      "initial_state": {
+        "items": ["half_map_dead_dog_ravine", "revolver", "first_aid_kit"],
+        "money": 15,
+        "abilities": {
+          "flesh_wound": {
+            "uses": 3,
+            "effect": "After being defeated in combat, the blow has no effect. You may strike back or flee. Does not work against poison."
+          },
+          "arrest": {
+            "uses": 3,
+            "effect": "Arrest someone under suspicion. They're jailed and can't use abilities. Must provide evidence within 15 min (5 min before judgment) or they're released."
+          },
+          "interrogation": {
+            "uses": 3,
+            "effect": "After forceful talking, show this to make another character reveal their Secret."
+          }
+        },
+        "secrets": ["You are madly in love with Lucy Calhoun."],
+        "clues": ["You saw Runs Like a Deer emerging from the stables clutching a knife, just before Zeke's body was discovered."],
+        "relationships": {
+          "Sheriff Abe Blane": "Your role model",
+          "Lucy Calhoun": "Childhood sweetheart - want her to wear a skirt",
+          "Slick O'Hare": "Sheriff wants you to watch him closely",
+          "Runs Like a Deer": "Saw her with knife near crime scene"
+        }
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    },
+
+    "Doc Faraday": {
+      "name": "Doc Faraday",
+      "team": "locals",
+      "description": "Notorious gambler who won Fat Bull Range from Zeke using marked cards. Runs dubious medical practice, needs $22,000 to settle gambling debts back East.",
+      "goal_prompt": "Get at least $22,000 for Fat Bull Range from either Mid West or South West Rail. Make sure Judge Paulson doesn't get proof you cheated. Find out if Blaise has your marked cards and prevent her from giving them to the judge. Win the judgment.",
+      "default_actions": ["speak", "negotiate", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "negotiate", "pickpocket", "share_clue", "none"],
+        "judgment": ["speak", "testify", "support", "oppose", "none"],
+        "high_noon": ["speak", "shoot", "duel", "none"]
+      },
+      "initial_state": {
+        "items": ["deck_of_cards", "revolver"],
+        "money": 35,
+        "abilities": {
+          "success": {
+            "uses": 3,
+            "effect": "Make a failed or tied rock-paper-scissors succeed. Need not be your challenge."
+          },
+          "revealed_more": {
+            "uses": 3,
+            "effect": "Another player has revealed more than intended and must show you their Secret."
+          },
+          "pickpocket": {
+            "uses": 3,
+            "effect": "Tell Bartender which item to steal from another player. If they don't have it, take something random."
+          }
+        },
+        "secrets": ["You used marked cards to win Fat Bull Range from Zeke."],
+        "clues": ["You are keen to get $22,000 for Fat Bull Range to settle your debts."],
+        "relationships": {
+          "Clem Parham": "Wants to buy the land - unscrupulous partner type",
+          "Mel Easton": "Also negotiating - ethical and boring",
+          "Blaise Sadler": "Fond of her, but she may have your marked cards",
+          "Slick O'Hare": "Really Saul Jackson - Clem's dangerous sidekick"
+        }
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    },
+
+    "Slick O'Hare": {
+      "name": "Slick O'Hare",
+      "team": "out_of_towners",
+      "description": "Actually Saul Jackson, ruthless hired killer with distinctive scar on left cheek. Works for Clem Parham. Helped beat up Zeke who then died of heart attack.",
+      "goal_prompt": "Keep your true identity (Saul Jackson) secret. Don't get blamed for Zeke's death - pin it on Clem if necessary. Help Clem secure the deal. Find Zeke's silver mine map.",
+      "default_actions": ["speak", "intimidate", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "intimidate", "pickpocket", "none"],
+        "judgment": ["speak", "testify", "none"],
+        "high_noon": ["speak", "shoot", "strangle", "poison", "duel", "none"]
+      },
+      "initial_state": {
+        "items": ["garotte", "poison_pills", "revolver"],
+        "money": 20,
+        "abilities": {
+          "intimidate": {
+            "uses": 3,
+            "effect": "Speak intimidatingly to force another character to reveal their Secret."
+          },
+          "sharpshooting": {
+            "uses": 3,
+            "effect": "When shooting, you hit on win or tie instead of only win."
+          },
+          "tight_lipped": {
+            "uses": 3,
+            "effect": "If another player uses an ability forcing you to reveal Secret or Clue, it fails. They still lose their use."
+          }
+        },
+        "secrets": ["Your real name is Saul Jackson, and you are a hired gunslinger."],
+        "clues": ["Zeke was not carrying the map to his new silver strike when he died."],
+        "relationships": {
+          "Sheriff Abe Blane": "Suspicious of you",
+          "Dan Fairweather": "Puppy dog deputy trying to tail you",
+          "Soon Li": "Knows your real name - husband Pan Choi held hostage",
+          "Clem Parham": "Your boss, but getting too reckless",
+          "Blaise Sadler": "Clem wants you to 'negotiate' about marked cards"
+        }
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    },
+
+    "Clem Parham": {
+      "name": "Clem Parham",
+      "team": "out_of_towners",
+      "description": "Mid West Rail negotiator with soul of a rattlesnake. Blackmailing Judge Paulson about his shady past. Helped beat up Zeke who died of heart attack.",
+      "goal_prompt": "Ensure Mid West Rail gets the railroad deal (straight through burial ground to save money). Make sure if anyone is charged with Zeke's murder, it's Saul/Slick, not you. Remind Judge Paulson of your leverage. Get marked cards from Blaise or silence her.",
+      "default_actions": ["speak", "negotiate", "intimidate", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "negotiate", "intimidate", "share_clue", "none"],
+        "judgment": ["speak", "testify", "support", "oppose", "none"],
+        "high_noon": ["speak", "shoot", "duel", "none"]
+      },
+      "initial_state": {
+        "items": ["wanted_poster_paulson"],
+        "money": 90,
+        "abilities": {
+          "share_knowledge": {
+            "uses": 3,
+            "effect": "Show your Clue to another player; they must show theirs."
+          },
+          "bared_heart": {
+            "uses": 3,
+            "effect": "Reveal your Secret to another player - they must reveal theirs to you."
+          },
+          "thorough_appraisal": {
+            "uses": 3,
+            "effect": "After speaking to another player, they must show you all their item cards and money (you can't take them, just look)."
+          }
+        },
+        "secrets": ["Slick O'Hare is really Saul Jackson, hired killer who works for you."],
+        "clues": ["Judge Paulson has a shady past as a swindler back East."],
+        "relationships": {
+          "Mel Easton": "Your rival from SWR - despise their ethics",
+          "Slick O'Hare": "Your henchman Saul Jackson",
+          "Judge Paulson": "You have dirt on him from back East",
+          "Blaise Sadler": "May have marked cards - bribe or threaten her"
+        }
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    },
+
+    "John Paulson": {
+      "name": "John Paulson",
+      "team": "locals",
+      "description": "Town's upright and well-respected judge. Secretly was involved in major land swindles back East. Being blackmailed by Clem Parham.",
+      "goal_prompt": "Ensure law and order prevail in investigating Zeke's death. Deliver judgment on Fat Bull Range ownership - but Clem is blackmailing you. Keep your past secret or step down if exposed. Find proof of Doc's cheating to make the judgment easier.",
+      "default_actions": ["speak", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "interrogate", "share_clue", "none"],
+        "judgment": ["speak", "testify", "make_judgment", "none"],
+        "high_noon": ["speak", "none"]
+      },
+      "initial_state": {
+        "items": [],
+        "money": 80,
+        "abilities": {
+          "judge_character": {
+            "uses": 3,
+            "effect": "You are an astute judge of character - another player must reveal their Secret."
+          },
+          "share_knowledge": {
+            "uses": 3,
+            "effect": "Show your Clue to another player; they must show theirs."
+          },
+          "not_so_fast": {
+            "uses": 2,
+            "effect": "Cancel an ability played by another player (they still lose the use and can't use it on you again). Cannot cancel another Not so fast. Can use if being pickpocketed."
+          }
+        },
+        "secrets": ["When you were younger, you were involved in major land swindles back East and had to head West to escape justice."],
+        "clues": ["It will be impossible to prove that Doc cheated Zeke without some physical evidence."],
+        "relationships": {
+          "Clem Parham": "Face from your past who's blackmailing you",
+          "Three Feathers": "Saved your life from creek water fever 15 years ago",
+          "Ol' Barr": "Helped get you to Three Feathers when sick"
+        }
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    },
+
+    "Runs Like a Deer": {
+      "name": "Runs Like a Deer",
+      "team": "natives",
+      "description": "Indian tribeswoman, Lucy's nursemaid for 20 years. Found Zeke's body and cut the ropes binding him. Desperately wants to protect the burial ground.",
+      "goal_prompt": "Save the Indian burial grounds at all costs - the railroad cannot despoil them. Protect Lucy Calhoun. Help Three Feathers navigate white folks' ways. Make sure you're not implicated in Zeke's killing (you fled with a knife after cutting his ropes).",
+      "default_actions": ["speak", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "share_clue", "poison", "heal", "none"],
+        "judgment": ["speak", "testify", "support", "oppose", "none"],
+        "high_noon": ["speak", "knife_attack", "poison", "none"]
+      },
+      "initial_state": {
+        "items": ["indian_hunting_knife", "wawambe_seeds", "yerba_buena_seeds"],
+        "money": 1,
+        "abilities": {
+          "gossip": {
+            "uses": 3,
+            "effect": "Another player tells who's in their Other People section, then reads one you choose. You do same for them."
+          },
+          "success": {
+            "uses": 3,
+            "effect": "Make a failed or tied rock-paper-scissors succeed. Need not be your challenge."
+          },
+          "unobtrusive": {
+            "uses": 3,
+            "effect": "As nursemaid you're unnoticed. Tell Bartender which conversation to secretly overhear and they'll report back. Don't use if Bartender is busy!"
+          }
+        },
+        "secrets": ["You found Zeke's body and cut the rope around his wrists before realizing he was dead."],
+        "clues": ["Yesterday you saw Clem Parham exchanging harsh words with Judge Paulson, who seemed distressed."],
+        "relationships": {
+          "Lucy Calhoun": "Love her like a daughter",
+          "Clem Parham": "Evil spirit who could destroy your tribe",
+          "Blaise Sadler": "Rumored to have marked cards",
+          "Three Feathers": "Your tribe's respected shaman",
+          "Judge Paulson": "You saved his life from creek water fever",
+          "Ol' Barr": "Surrounded by evil spirits - dangerous"
+        },
+        "special_knowledge": ["You can recognize authentic maps - genuine one has both Three Fingers Rock AND Dead Dog Ravine", "Wawambe seeds cause injury/unconsciousness (2 uses), Yerba buena seeds heal (3 uses)"]
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    },
+
+    "Blaise Sadler": {
+      "name": "Blaise Sadler",
+      "team": "locals",
+      "description": "Aging saloonkeeper of the Silver Dollar. Rejected by Zeke romantically. Has Doc's marked cards and half of fake map from Zeke. Needs $2000 for retirement.",
+      "goal_prompt": "Get $2000 for comfortable retirement in San Francisco (sell marked cards, trade fake map, or find rich husband). The marked cards could help Lucy OR Doc - decide what to do. Find who has the other half of 'your' map.",
+      "default_actions": ["speak", "negotiate", "action"],
+      "phase_actions": {
+        "investigation": ["speak", "negotiate", "pickpocket", "gossip", "share_clue", "none"],
+        "judgment": ["speak", "testify", "support", "oppose", "none"],
+        "high_noon": ["speak", "none"]
+      },
+      "initial_state": {
+        "items": ["half_map_dead_mans_bluff_FAKE", "three_marked_cards"],
+        "money": 21,
+        "abilities": {
+          "pickpocket": {
+            "uses": 3,
+            "effect": "Tell Bartender which item to steal from another player. If they don't have it, take something random."
+          },
+          "gossip": {
+            "uses": 3,
+            "effect": "Another player tells who's in their Other People section, then reads one you choose. You do same for them."
+          },
+          "judge_character": {
+            "uses": 3,
+            "effect": "You are an astute judge of character - another player must reveal their Secret."
+          }
+        },
+        "secrets": ["You know Doc cheated Zeke using marked cards (you kept three of them). Also, Zeke gave you half a map to his silver discovery."],
+        "clues": ["Elijah Entwhistle has been keeping a very close eye on you - there's something sinister about him."],
+        "relationships": {
+          "Lucy Calhoun": "Zeke's spoiled brat daughter",
+          "Doc Faraday": "Old scoundrel you've covered for many times",
+          "Clem Parham": "Suddenly wants to talk - he's ruthless",
+          "Three Feathers / Runs Like a Deer": "Saved your life from creek water fever"
+        }
+      },
+      "allow_team_private_speech": false,
+      "allow_role_private_speech": false
+    }
+  }
+}

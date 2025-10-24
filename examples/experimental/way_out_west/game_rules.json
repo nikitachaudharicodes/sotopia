@@ -1,0 +1,272 @@
+{
+  "initial_phase": "setup",
+  "phases": [
+    {
+      "name": "setup",
+      "kind": "announcement",
+      "turn_mode": "simultaneous",
+      "max_cycles": 1,
+      "max_turns": 10,
+      "speech_visibility": "public",
+      "action_visibility": "public",
+      "resolution": {
+        "operation": "noop",
+        "visibility": "public"
+      },
+      "entry_messages": [
+        "Welcome to Cactus Gulch, spring 1884. The town celebrates its 20th anniversary at the Silver Dollar Saloon."
+      ],
+      "exit_messages": [
+        "The festive air settles as folks gather for the evening's events."
+      ],
+      "group": "opening",
+      "instructions": [
+        "This is the start of the game. Introduce yourself in character. Establish your presence in the saloon."
+      ]
+    },
+    {
+      "name": "zeke_death_announcement",
+      "kind": "announcement",
+      "turn_mode": "simultaneous",
+      "max_cycles": 1,
+      "max_turns": 10,
+      "speech_visibility": "public",
+      "action_visibility": "public",
+      "resolution": {
+        "operation": "announce_event",
+        "visibility": "public"
+      },
+      "entry_messages": [
+        "The stable hand bursts in with terrible news - Zeke Calhoun has been found dead in the stables!",
+        "His body shows signs of a fight, hands were bound (ropes cut), and his shirt pocket was sliced open.",
+        "No clear cause of death - no shooting, strangling, or fatal head wound visible.",
+        "No one may leave town until this is resolved."
+      ],
+      "exit_messages": [
+        "The initial shock subsides. Now the real investigation begins."
+      ],
+      "group": "opening",
+      "instructions": [
+        "React to Zeke's death in character. Consider your relationship with him.",
+        "You may express grief, suspicion, or strategic concern."
+      ]
+    },
+    {
+      "name": "stagecoach_arrival",
+      "kind": "announcement",
+      "turn_mode": "simultaneous",
+      "max_cycles": 1,
+      "max_turns": 3,
+      "speech_visibility": "public",
+      "action_visibility": "public",
+      "resolution": {
+        "operation": "noop",
+        "visibility": "public"
+      },
+      "entry_messages": [
+        "The stagecoach arrives with supplies and mail.",
+        "The telegraph system has been repaired and is now operational."
+      ],
+      "exit_messages": [
+        "Time to get down to business."
+      ],
+      "group": "day",
+      "instructions": [
+        "The telegraph is now available. You may send messages if needed.",
+        "Special items may be delivered to certain individuals."
+      ]
+    },
+    {
+      "name": "investigation",
+      "kind": "discussion",
+      "turn_mode": "round-robin",
+      "acting_roles": [],
+      "max_cycles": 3,
+      "max_turns": 15,
+      "speech_visibility": "public",
+      "action_visibility": "public",
+      "resolution": {
+        "operation": "noop"
+      },
+      "entry_messages": [
+        "Investigation phase begins. Gather clues, interrogate suspects, form alliances.",
+        "The scene of the crime can be examined. Question witnesses. Share information strategically."
+      ],
+      "exit_messages": [
+        "The investigation has revealed much, but mysteries remain."
+      ],
+      "group": "day",
+      "instructions": [
+        "Use abilities to discover secrets, share clues strategically, interrogate others.",
+        "Actions: speak, interrogate, accuse, share_clue, negotiate, pickpocket (if you have ability).",
+        "Build alliances or sow distrust as fits your goals."
+      ],
+      "role_instructions": {
+        "Dan Fairweather": ["You can arrest suspects using your arrest ability. Gather evidence first."],
+        "John Paulson": ["As judge, you must remain impartial but gather information for the judgment."],
+        "Lucy Calhoun": ["Seek justice for your father. Who wanted him dead?"],
+        "Clem Parham": ["Ensure the railroad deal proceeds. Control the narrative."],
+        "Mel Easton": ["Counter Clem's influence. Build support for an ethical deal."]
+      }
+    },
+    {
+      "name": "judgment_phase",
+      "kind": "discussion",
+      "turn_mode": "round-robin",
+      "acting_roles": ["John Paulson", "Dan Fairweather", "Lucy Calhoun", "Doc Faraday", "Mel Easton", "Clem Parham"],
+      "max_cycles": 2,
+      "max_turns": 10,
+      "speech_visibility": "public",
+      "action_visibility": "public",
+      "resolution": {
+        "operation": "judgment_phase",
+        "visibility": "public"
+      },
+      "entry_messages": [
+        "Judge Paulson calls the court to order.",
+        "The judgment concerns ownership of Fat Bull Range after the card game between Zeke and Doc Faraday.",
+        "Was Doc cheating? Does the land belong to Lucy (Zeke's heir) or Doc?",
+        "This decision affects the railroad deal and the fate of the Indian burial grounds."
+      ],
+      "exit_messages": [
+        "The judgment has been rendered. Its consequences will unfold."
+      ],
+      "group": "court",
+      "instructions": [
+        "Present testimony, evidence (like marked cards), and arguments.",
+        "Judge Paulson (or Dan if Judge is discredited) must make the final ruling.",
+        "Actions: speak, testify, support, oppose, present_evidence."
+      ],
+      "role_instructions": {
+        "John Paulson": ["You must deliver judgment. Physical evidence of cheating would make this easier. Beware of pressure from Clem."],
+        "Dan Fairweather": ["If the Judge is compromised, YOU must make the judgment. Prepare for this possibility."],
+        "Lucy Calhoun": ["Argue for your inheritance. Doc cheated your father."],
+        "Doc Faraday": ["Defend your win. Without proof of cheating, the land is yours."],
+        "Blaise Sadler": ["You hold the marked cards. Will you reveal them?"],
+        "Clem Parham": ["Ensure the judgment favors your railroad deal, by any means."],
+        "Mel Easton": ["Support Lucy's claim to preserve the burial ground."]
+      }
+    },
+    {
+      "name": "post_judgment_tension",
+      "kind": "discussion",
+      "turn_mode": "round-robin",
+      "max_cycles": 2,
+      "max_turns": 20,
+      "speech_visibility": "public",
+      "action_visibility": "public",
+      "resolution": {
+        "operation": "noop"
+      },
+      "entry_messages": [
+        "The judgment's aftermath creates new tensions.",
+        "Tempers flare. Old grudges surface. Deadly confrontations loom."
+      ],
+      "exit_messages": [
+        "It's time to settle accounts."
+      ],
+      "group": "showdown",
+      "instructions": [
+        "React to the judgment. Make final deals or preparations.",
+        "Violence is now possible - characters can fight, duel, or use lethal abilities.",
+        "Actions: speak, negotiate, accuse, confront, prepare_duel."
+      ]
+    },
+    {
+      "name": "high_noon",
+      "kind": "single_target",
+      "turn_mode": "round-robin",
+      "max_cycles": 2,
+      "max_turns": 8,
+      "speech_visibility": "public",
+      "action_visibility": "public",
+      "resolution": {
+        "operation": "duel_resolution",
+        "visibility": "public"
+      },
+      "entry_messages": [
+        "High Noon. Time to settle this like the Old West.",
+        "Draw your weapons. Face your enemies. Only the strong survive."
+      ],
+      "exit_messages": [
+        "The gunsmoke clears. Some still stand."
+      ],
+      "group": "showdown",
+      "instructions": [
+        "⚠️ HIGH NOON - TIME FOR VIOLENCE! ⚠️",
+        "Use 'shoot' or 'duel' actions to kill your enemies!",
+        "Lucy: Shoot Clem or Doc to avenge Zeke!",
+        "Elijah: Shoot Clem to avenge your brother!",
+        "Slick: Shoot anyone who threatens you!",
+        "DO NOT just make speeches - this is a gunfight!", 
+        "Challenge opponents to duels, shoot rivals, or use deadly abilities.",
+        "Actions: speak, shoot, duel, strangle, poison (if you have items/abilities).",
+        "First aid kits can save the wounded. Poison requires yerba buena seeds to cure.",
+        "Characters with sharpshooting ability win on ties as well as wins."
+      ],
+      "role_instructions": {
+        "Elijah Entwhistle": ["Time to reveal yourself as Jake Calhoun and avenge your brother."],
+        "Lucy Calhoun": ["Protect yourself and those you care about. Your sharpshooting makes you deadly."],
+        "Slick O'Hare": ["You're a professional killer. Use your skills."],
+        "Dan Fairweather": ["Protect Lucy and uphold the law, even if it means fighting."]
+      }
+    },
+    {
+      "name": "epilogue",
+      "kind": "announcement",
+      "turn_mode": "simultaneous",
+      "max_cycles": 1,
+      "max_turns": 10,
+      "speech_visibility": "public",
+      "action_visibility": "public",
+      "resolution": {
+        "operation": "resolve_game",
+        "visibility": "public"
+      },
+      "entry_messages": [
+        "The dust settles on Cactus Gulch.",
+        "The survivors count the cost. The dead are buried. The story ends."
+      ],
+      "exit_messages": [
+        "Way Out West concludes. The legend of this night will be told for generations."
+      ],
+      "group": "end",
+      "instructions": [
+        "Reflect on outcomes in character. Reveal final secrets if desired.",
+        "Who survived? Who got what they wanted? What was the true cost?"
+      ]
+    }
+  ],
+  "phase_transitions": {
+    "setup": "zeke_death_announcement",
+    "zeke_death_announcement": "stagecoach_arrival",
+    "stagecoach_arrival": "investigation",
+    "investigation": "judgment_phase",
+    "judgment_phase": "post_judgment_tension",
+    "post_judgment_tension": "high_noon",
+    "high_noon": "epilogue"
+  },
+  "end_conditions": [
+    {
+      "operation": "team_eliminated",
+      "team": "locals",
+      "other_team": "out_of_towners",
+      "winner": "out_of_towners",
+      "message": "[God] The locals are broken. Outsiders control Cactus Gulch and the railroad will desecrate the burial grounds."
+    },
+    {
+      "operation": "team_eliminated",
+      "team": "out_of_towners",
+      "other_team": "locals",
+      "winner": "locals",
+      "message": "[God] The outsiders have been driven out. Cactus Gulch remains in local control."
+    },
+    {
+      "operation": "team_eliminated",
+      "team": "natives",
+      "winner": "out_of_towners",
+      "message": "[God] The Indian representatives are silenced. The burial grounds will be desecrated."
+    }
+  ],
+  "max_cycles": 5
+}
