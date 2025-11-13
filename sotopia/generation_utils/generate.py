@@ -1,19 +1,21 @@
 import logging
 import os
+from dataclasses import dataclass
 from litellm import acompletion
+from litellm.exceptions import BadRequestError
 from litellm.utils import supports_response_schema
 from litellm.litellm_core_utils.get_supported_openai_params import (
     get_supported_openai_params,
 )
-from typing import Any
+from typing import Any, cast
 
 import gin
 
-from pydantic import BaseModel, validate_call
+from pydantic import validate_call
 from rich import print
 from rich.logging import RichHandler
 
-from sotopia.database import EnvironmentProfile, RelationshipProfile, LLMEvalBaseModel
+from sotopia.database import EnvironmentProfile, RelationshipProfile
 from sotopia.messages import ActionType, AgentAction, ScriptBackground
 from sotopia.messages.message_classes import (
     ScriptInteraction,
@@ -45,31 +47,41 @@ formatter = logging.Formatter(
 )
 console_handler.setFormatter(formatter)
 
-
-def fill_template(template: str, **kwargs: str) -> str:
-    """Fill template with kwargs, ignoring missing keys."""
-    for k, v in kwargs.items():
-        template = template.replace(f"{{{k}}}", v)
-    return template
-
-
 # Add handler to logger
 log.addHandler(console_handler)
 
 # subject to future OpenAI changes
-DEFAULT_BAD_OUTPUT_PROCESS_MODEL = "gpt-5-mini-2025-08-07"
+DEFAULT_BAD_OUTPUT_PROCESS_MODEL = "gpt-4o-mini"
 DEFAULT_TEMPERATURE = 0.7
+_TEMPERATURE_SENTINEL = object()
+
+# Cache temperature support per (model, base_url) to avoid repeated bad requests
+_TEMPERATURE_SUPPORT_CACHE: dict[tuple[str, str | None], bool] = {}
+
+
+@dataclass(frozen=True)
+class TemperatureSetting:
+    value: float | None
+    treat_as_default: bool = False
+
+
+def default_temperature(value: float | None) -> TemperatureSetting:
+    return TemperatureSetting(value=value, treat_as_default=True)
+
+
+def custom_temperature(value: float | None) -> TemperatureSetting:
+    return TemperatureSetting(value=value, treat_as_default=False)
 
 
 @validate_call
 async def format_bad_output(
     ill_formed_output: str,
-    output_parser: OutputParser[OutputType],
+    format_instructions: str,
     model_name: str,
     use_fixed_model_version: bool = True,
     base_url: str | None = None,
+    api_key: str | None = None,
 ) -> str:
-    format_instructions = output_parser.get_format_instructions()
     template = """
     Given the string that can not be parsed by json parser, reformat it to a string that can be parsed by json parser.
     Original string: {ill_formed_output}
@@ -84,84 +96,28 @@ async def format_bad_output(
         "format_instructions": format_instructions,
     }
     content = template.format(**input_values)
-    if isinstance(output_parser, PydanticOutputParser):
-        response_format = _build_json_schema_response_format(
-            output_parser.pydantic_object,
-        )
-        response = await acompletion(
-            model=model_name,
-            response_format=response_format,
-            messages=[{"role": "user", "content": content}],
-        )
-    else:
-        response = await acompletion(
-            model=model_name,
-            messages=[{"role": "user", "content": content}],
-        )
-    content = response.choices[0].message.content
-    if content is None:
-        raise ValueError("Response content is None")
-    return content
 
-
-def _sanitize_schema_name(name: str) -> str:
-    """
-    Sanitize schema title to match OpenAI's naming pattern.
-
-    OpenAI requires schema names to match: ^[a-zA-Z0-9_-]+$
-    Replaces invalid characters with underscores.
-
-    Args:
-        name: Original schema title (may contain brackets, spaces, etc.)
-
-    Returns:
-        Sanitized name with only alphanumeric, underscore, and hyphen
-
-    Example:
-        >>> _sanitize_schema_name("Response[AgentAction]")
-        'Response_AgentAction_'
-    """
-    return "".join(c if c.isalnum() or c in ("_", "-") else "_" for c in name)
-
-
-def _build_json_schema_response_format(
-    pydantic_class: type[BaseModel],
-) -> dict[str, Any]:
-    """
-    Build complete OpenAI response_format dict for structured output.
-
-    Coordinates schema validation, fixing, and formatting into the
-    structure expected by litellm's acompletion with json_schema mode.
-
-    Args:
-        schema: Raw JSON schema from model_json_schema()
-        pydantic_class: Original Pydantic class (for name extraction)
-
-    Returns:
-        Complete response_format dict with type, json_schema, name, schema, strict
-    """
-    # Sanitize the schema name
-    schema = pydantic_class.model_json_schema()
-    original_name = schema.get("title", pydantic_class.__name__)
-    sanitized_name = _sanitize_schema_name(original_name)
-
-    # Determine whether to use strict mode
-    # LLMEvalBaseModel and its subclasses (like EvaluationForAgents) use dict[str, T]
-    # which requires additionalProperties with a schema (for dynamic keys).
-    # OpenAI's strict mode only allows additionalProperties: false, so we disable
-    # strict mode for these models.
-
-    use_strict = not issubclass(pydantic_class, LLMEvalBaseModel)
-
-    # Build response format
-    return {
-        "type": "json_schema",
-        "json_schema": {
-            "name": sanitized_name,
-            "schema": schema,
-            "strict": use_strict,
-        },
+    # Build completion kwargs
+    completion_kwargs = {
+        "model": model_name,
+        "messages": [{"role": "user", "content": content}],
     }
+
+    # Only add response_format if not using custom base_url
+    # Custom servers may not support this parameter
+    if base_url is None:
+        completion_kwargs["response_format"] = {"type": "json_object"}
+    else:
+        completion_kwargs["base_url"] = base_url
+        completion_kwargs["api_key"] = api_key
+
+    response = await acompletion(**completion_kwargs)
+    reformatted_output = response.choices[0].message.content
+    assert isinstance(reformatted_output, str)
+    log.debug(f"Model: {model_name}")
+    log.debug(f"Prompt: {content}")
+    log.info(f"Reformated output: {reformatted_output}")
+    return reformatted_output
 
 
 @gin.configurable
@@ -171,51 +127,13 @@ async def agenerate(
     template: str,
     input_values: dict[str, str],
     output_parser: OutputParser[OutputType],
-    temperature: float | None = DEFAULT_TEMPERATURE,
+    temperature: TemperatureSetting | float | None | object = _TEMPERATURE_SENTINEL,
     structured_output: bool = False,
     bad_output_process_model: str | None = None,
     use_fixed_model_version: bool = True,
-    context: dict[str, Any] | None = None,
 ) -> OutputType:
-    """
-    Generate text using LiteLLM with optional structured output support.
-
-    This function handles template formatting, temperature management, schema validation,
-    and API calls. It supports both structured (JSON schema) and standard text generation modes.
-
-    Args:
-        model_name: Model identifier (e.g., "gpt-4o-mini" or "custom/model@http://...")
-        template: Template string with {variable} placeholders
-        input_values: Dict mapping template variables to their values
-        output_parser: Parser to convert raw output to desired type
-        temperature: Temperature value (float or None). Defaults to DEFAULT_TEMPERATURE.
-                     None means use provider default. With drop_params=True, litellm
-                     automatically handles unsupported parameters.
-        structured_output: If True, use JSON schema mode (requires PydanticOutputParser)
-        bad_output_process_model: Model to use for reformatting bad outputs (if needed)
-        use_fixed_model_version: Whether to use fixed model versioning
-        context: Optional context dict passed to output parser
-
-    Returns:
-        Parsed output of type OutputType
-
-    Example:
-        >>> from sotopia.generation_utils.output_parsers import PydanticOutputParser
-        >>> from pydantic import BaseModel
-        >>> class Response(BaseModel):
-        ...     text: str
-        >>> result = await agenerate(
-        ...     model_name="gpt-4o-mini",
-        ...     template="Say hello to {name}",
-        ...     input_values={"name": "Alice"},
-        ...     output_parser=PydanticOutputParser(pydantic_object=Response),
-        ...     structured_output=True,
-        ... )
-    """
+    """Generate text using LiteLLM instead of Langchain."""
     # Format template with input values
-    bad_output_process_model = (
-        bad_output_process_model or DEFAULT_BAD_OUTPUT_PROCESS_MODEL
-    )
     if "format_instructions" not in input_values:
         input_values["format_instructions"] = output_parser.get_format_instructions()
 
@@ -236,13 +154,80 @@ async def agenerate(
         base_url = None
         api_key = None
 
-    temperature_value: float | None = temperature
+    cache_key = (model_name, base_url)
 
     supported_params: list[str] | None = None
     if base_url is None:
         supported_params = get_supported_openai_params(model=model_name)
 
-    messages = [{"role": "user", "content": template}]
+    effective_temperature: float | None
+    treat_as_default: bool
+    user_provided_temperature: bool
+
+    if temperature is _TEMPERATURE_SENTINEL:
+        effective_temperature = DEFAULT_TEMPERATURE
+        treat_as_default = True
+        user_provided_temperature = False
+    elif isinstance(temperature, TemperatureSetting):
+        effective_temperature = temperature.value
+        treat_as_default = temperature.treat_as_default
+        user_provided_temperature = True
+    else:
+        effective_temperature = cast(float | None, temperature)
+        treat_as_default = False
+        user_provided_temperature = True
+
+    send_temperature = (
+        user_provided_temperature
+        and effective_temperature is not None
+        and not treat_as_default
+    )
+    non_default_requested = send_temperature and not treat_as_default
+
+    if send_temperature:
+        if cache_key in _TEMPERATURE_SUPPORT_CACHE:
+            if not _TEMPERATURE_SUPPORT_CACHE[cache_key]:
+                send_temperature = False
+                if non_default_requested:
+                    log.warning(
+                        "Model %s previously rejected temperature; ignoring temperature=%s",
+                        model_name,
+                        effective_temperature,
+                    )
+        elif supported_params is not None and "temperature" not in supported_params:
+            _TEMPERATURE_SUPPORT_CACHE[cache_key] = False
+            send_temperature = False
+            if non_default_requested:
+                log.warning(
+                    "Model %s does not support temperature; ignoring temperature=%s",
+                    model_name,
+                    effective_temperature,
+                )
+
+    async def _call_with_retry(completion_kwargs: dict[str, Any]) -> Any:
+        nonlocal send_temperature
+        call_kwargs = dict(completion_kwargs)
+        if send_temperature:
+            call_kwargs["temperature"] = effective_temperature
+        try:
+            response = await acompletion(**call_kwargs)
+            if send_temperature:
+                _TEMPERATURE_SUPPORT_CACHE[cache_key] = True
+            return response
+        except BadRequestError as exc:
+            if send_temperature and "temperature" in str(exc).lower():
+                send_temperature = False
+                _TEMPERATURE_SUPPORT_CACHE[cache_key] = False
+                if non_default_requested:
+                    log.warning(
+                        "Model %s does not support temperature; ignoring temperature=%s",
+                        model_name,
+                        effective_temperature,
+                    )
+                call_kwargs.pop("temperature", None)
+                return await acompletion(**call_kwargs)
+            raise
+
     if structured_output:
         if not base_url:
             assert supported_params is not None
@@ -252,57 +237,61 @@ async def agenerate(
             assert supports_response_schema(
                 model=model_name
             ), "response_schema is not supported in this model"
+        messages = [{"role": "user", "content": template}]
 
         assert isinstance(
             output_parser, PydanticOutputParser
         ), "structured output only supported in PydanticOutputParser"
-
-        response_format = _build_json_schema_response_format(
-            output_parser.pydantic_object
+        completion_kwargs = dict(
+            model=model_name,
+            messages=messages,
+            response_format=output_parser.pydantic_object,
+            drop_params=True,  # drop params to avoid model error if the model does not support it
+            base_url=base_url,
+            api_key=api_key,
         )
+        response = await _call_with_retry(completion_kwargs)
+        result = response.choices[0].message.content
+        # Include agent name in logs if available
+        agent_name = input_values.get("agent", "")
+        log_prefix = f" [{agent_name}]" if agent_name else ""
+        log.debug(f"Model: {model_name}")
+        log.debug(f"Prompt: {messages}")
+        log.info(f"Generated result{log_prefix}: {result}")
+        assert isinstance(result, str)
+        return cast(OutputType, output_parser.parse(result))
 
-        # Build completion kwargs with structured output
-        completion_kwargs = {
-            "model": model_name,
-            "messages": messages,
-            "response_format": response_format,
-            "drop_params": True,  # litellm automatically drops unsupported params
-            "base_url": base_url,
-            "api_key": api_key,
-        }
-        if temperature_value is not None:
-            completion_kwargs["temperature"] = temperature_value
-        response = await acompletion(**completion_kwargs)
-    else:
-        # Build completion kwargs for standard output
-        completion_kwargs = {
-            "model": model_name,
-            "messages": messages,
-            "drop_params": True,  # litellm automatically drops unsupported params
-            "base_url": base_url,
-            "api_key": api_key,
-        }
-        if temperature_value is not None:
-            completion_kwargs["temperature"] = temperature_value
-        response = await acompletion(**completion_kwargs)
+    messages = [{"role": "user", "content": template}]
+
+    completion_kwargs = dict(
+        model=model_name,
+        messages=messages,
+        drop_params=True,
+        base_url=base_url,
+        api_key=api_key,
+    )
+    response = await _call_with_retry(completion_kwargs)
     result = response.choices[0].message.content
 
-    # Only PydanticOutputParser supports context parameter
-    parse_kwargs = (
-        {"context": context} if isinstance(output_parser, PydanticOutputParser) else {}
-    )
-
     try:
-        parsed_result = output_parser.parse(result, **parse_kwargs)
-    except Exception:
+        parsed_result = output_parser.parse(result)
+    except Exception as e:
+        if isinstance(output_parser, ScriptOutputParser):
+            raise e
+        log.debug(
+            f"[red] Failed to parse result: {result}\nEncounter Exception {e}\nstart to reparse",
+            extra={"markup": True},
+        )
+        # Handle bad output reformatting
         reformat_result = await format_bad_output(
             result,
-            output_parser,
+            output_parser.get_format_instructions(),
             bad_output_process_model or model_name,
             use_fixed_model_version,
             base_url=base_url,
+            api_key=api_key,
         )
-        parsed_result = output_parser.parse(reformat_result, **parse_kwargs)
+        parsed_result = output_parser.parse(reformat_result)
 
     # Include agent name in logs if available
     agent_name = input_values.get("agent", "")
@@ -319,7 +308,7 @@ async def agenerate_env_profile(
     model_name: str,
     inspiration_prompt: str = "asking my boyfriend to stop being friends with his ex",
     examples: str = "",
-    temperature: float | None = DEFAULT_TEMPERATURE,
+    temperature: TemperatureSetting | float | None | object = _TEMPERATURE_SENTINEL,
     bad_output_process_model: str | None = None,
     use_fixed_model_version: bool = True,
 ) -> EnvironmentProfile:
@@ -382,26 +371,16 @@ async def agenerate_action(
     action_types: list[ActionType],
     agent: str,
     goal: str,
-    temperature: float | None = DEFAULT_TEMPERATURE,
+    temperature: TemperatureSetting | float | None | object = _TEMPERATURE_SENTINEL,
     script_like: bool = False,
     bad_output_process_model: str | None = None,
     use_fixed_model_version: bool = True,
-    custom_template: str | None = None,
-    structured_output: bool = False,
-    agent_names: list[str] | None = None,
-    sender: str | None = None,
 ) -> AgentAction:
     """
     Using langchain to generate an example episode
     """
     try:
-        if custom_template:
-            if script_like:
-                raise ValueError(
-                    "script_like and custom_template are mutually exclusive"
-                )
-            template = custom_template
-        elif script_like:
+        if script_like:
             # model as playwright
             template = """
                 Now you are a famous playwright, your task is to continue writing one turn for agent {agent} under a given background and history to help {agent} reach social goal. Please continue the script based on the previous turns. You can only generate one turn at a time.
@@ -434,16 +413,6 @@ async def agenerate_action(
                 Your action should follow the given format:
                 {format_instructions}
             """
-        # Build validation context if agent_names provided
-        validation_context = None
-        if agent_names is not None:
-            validation_context = {
-                "agent_names": agent_names,
-                "available_action_types": action_types,
-            }
-            if sender is not None:
-                validation_context["sender"] = sender
-
         return await agenerate(
             model_name=model_name,
             template=template,
@@ -452,18 +421,16 @@ async def agenerate_action(
                 turn_number=str(turn_number),
                 history=history,
                 action_list=" ".join(action_types),
-                goal=goal,
             ),
             output_parser=PydanticOutputParser(pydantic_object=AgentAction),
             temperature=temperature,
-            structured_output=structured_output,
+            structured_output=True,
             bad_output_process_model=bad_output_process_model,
             use_fixed_model_version=use_fixed_model_version,
-            context=validation_context,
         )
     except Exception as e:
         log.warning(f"Failed to generate action due to {e}")
-        return AgentAction(action_type="none", argument="", to=[])
+        return AgentAction(action_type="none", argument="")
 
 
 @gin.configurable
@@ -471,7 +438,7 @@ async def agenerate_action(
 async def agenerate_script(
     model_name: str,
     background: ScriptBackground,
-    temperature: float | None = DEFAULT_TEMPERATURE,
+    temperature: TemperatureSetting | float | None | object = _TEMPERATURE_SENTINEL,
     agent_names: list[str] = [],
     agent_name: str = "",
     history: str = "",
@@ -505,7 +472,7 @@ async def agenerate_script(
                     history=history,
                     agent=agent_name,
                 ),
-                output_parser=ScriptOutputParser(  # type: ignore[call-arg,arg-type]
+                output_parser=ScriptOutputParser(  # type: ignore[arg-type]
                     agent_names=agent_names,
                     background=background.to_natural_language(),
                     single_turn=True,
@@ -529,7 +496,7 @@ async def agenerate_script(
                 input_values=dict(
                     background=background.to_natural_language(),
                 ),
-                output_parser=ScriptOutputParser(  # type: ignore[call-arg,arg-type]
+                output_parser=ScriptOutputParser(  # type: ignore[arg-type]
                     agent_names=agent_names,
                     background=background.to_natural_language(),
                     single_turn=False,
