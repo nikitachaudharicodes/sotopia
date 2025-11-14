@@ -63,6 +63,7 @@ def run_sync_server(
     else:
         environment_messages = env.reset()
     agents = Agents()
+    # agents_model_names = [model_name_dict["agent1"], model_name_dict["agent2"]]
     # derive agent keys like agent1, agent2, … agentN
     agent_keys = sorted(k for k in model_name_dict if re.fullmatch(r"agent\d+", k))
     agents_model_names = [model_name_dict[k] for k in agent_keys]
@@ -159,53 +160,49 @@ async def arun_one_episode(
             # gather agent messages
             agent_messages: dict[str, AgentAction] = dict()
 
-            actions = await asyncio.gather(
-                *[
-                    agents[agent_name].aact(environment_messages[agent_name])
-                    for agent_name in env.agents
-                ]
-            )
             if script_like:
-                # manually mask one message
+                # Only call agents where action_mask is True
                 agent_mask = env.action_mask
-                for idx in range(len(agent_mask)):
-                    if agent_mask[idx] == 0:
-                        actions[idx] = AgentAction(
-                            action_type="none", argument="", to=[]
+                actions_to_gather = []
+                acting_indices = []
+
+                for idx, agent_name in enumerate(env.agents):
+                    if agent_mask[idx]:
+                        actions_to_gather.append(
+                            agents[agent_name].aact(environment_messages[agent_name])
                         )
+                        acting_indices.append(idx)
+
+                # Gather only acting agents' responses
+                if actions_to_gather:
+                    acting_actions = await asyncio.gather(*actions_to_gather)
+                else:
+                    acting_actions = []
+
+                # Build full actions list with "none" for non-acting agents
+                actions = []
+                acting_idx = 0
+                for idx in range(len(env.agents)):
+                    if agent_mask[idx]:
+                        actions.append(acting_actions[acting_idx])
+                        acting_idx += 1
                     else:
-                        pass
+                        actions.append(AgentAction(action_type="none", argument=""))
+            else:
+                # Original behavior: gather all agents
+                actions = await asyncio.gather(
+                    *[
+                        agents[agent_name].aact(environment_messages[agent_name])
+                        for agent_name in env.agents
+                    ]
+                )
 
             for idx, agent_name in enumerate(env.agents):
-                # Validate action recipients; retry once on failure
-                action = actions[idx]
-                try:
-                    AgentAction.model_validate(
-                        action.model_dump(),
-                        context={"agent_names": env.agents, "sender": agent_name},
-                    )
-                except ValueError as e:
-                    agents[agent_name].recv_message(
-                        "Environment",
-                        SimpleMessage(
-                            message=f"Invalid action: {e}. Regenerate according to provided error message"
-                        ),
-                    )
-                    # Retry once
-                    action = await agents[agent_name].aact(
-                        environment_messages[agent_name]
-                    )
-                    AgentAction.model_validate(
-                        action.model_dump(),
-                        context={
-                            "agent_names": env.agents,
-                            "sender": agent_name,
-                        },
-                    )
+                agent_messages[agent_name] = actions[idx]
 
-                agent_messages[agent_name] = action
-
-                messages[-1].append((agent_name, "Environment", action))
+                messages[-1].append(
+                    (agent_name, "Environment", agent_messages[agent_name])
+                )
 
             # send agent messages to environment
             (
@@ -227,10 +224,12 @@ async def arun_one_episode(
                 " ".join(info[agent_name]["comments"] for agent_name in env.agents)
             )
             done = all(terminated.values())
+
         epilog = EpisodeLog(
             environment=env.profile.pk,
             agents=[agent.profile.pk for agent in agent_list],
             tag=tag,
+            # models=[env.model_name, agent_list[0].model_name, agent_list[1].model_name],
             models=[env.model_name] + [agent.model_name for agent in agent_list],
             messages=[
                 [(m[0], m[1], m[2].to_natural_language()) for m in messages_in_turn]
@@ -335,6 +334,11 @@ async def run_async_server(
                 ),
             ],
         }
+        # agents_model_dict = {
+        #     agent_name: model_name
+        #     for agent_name, model_name in model_dict.items()
+        #     if agent_name.startswith("agent")
+        # }
 
         agent_keys = sorted(k for k in model_dict if re.fullmatch(r"agent\d+", k))
         agent_models = [model_dict[k] for k in agent_keys]
