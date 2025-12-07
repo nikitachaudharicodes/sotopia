@@ -1,5 +1,6 @@
 import logging
 import os
+import json
 from dataclasses import dataclass
 from litellm import acompletion
 from litellm.exceptions import BadRequestError
@@ -88,7 +89,6 @@ async def format_bad_output(
     model_name: str,
     use_fixed_model_version: bool = True,
     base_url: str | None = None,
-    api_key: str | None = None,
 ) -> str:
     template = """
     Given the string that can not be parsed by json parser, reformat it to a string that can be parsed by json parser.
@@ -111,13 +111,55 @@ async def format_bad_output(
         "messages": [{"role": "user", "content": content}],
     }
 
-    # Only add response_format if not using custom base_url
-    # Custom servers may not support this parameter
-    if base_url is None:
+    # Parse format_instructions to get the schema
+    try:
+        schema = json.loads(format_instructions)
+
+        def _fix_schema(s: dict[str, Any]) -> None:
+            if s.get("type") == "array":
+                if "prefixItems" in s:
+                    # OpenAI doesn't support prefixItems (tuple validation).
+                    # Convert to items: {anyOf: [...]} to satisfy "items must be a schema object"
+                    # This allows valid tuple elements but loses positional validation.
+                    prefix_items = s.pop("prefixItems")
+                    s["items"] = {"anyOf": prefix_items}
+
+                if "items" in s and isinstance(s["items"], dict):
+                    _fix_schema(s["items"])
+                elif "items" in s and isinstance(s["items"], list):
+                    # Should not happen after the fix above, but handle legacy cases if any
+                    for item in s["items"]:
+                        _fix_schema(item)
+            elif s.get("type") == "object":
+                if "properties" in s:
+                    for prop in s["properties"].values():
+                        _fix_schema(prop)
+                if "additionalProperties" in s and isinstance(
+                    s["additionalProperties"], dict
+                ):
+                    _fix_schema(s["additionalProperties"])
+                if "$defs" in s:
+                    for def_schema in s["$defs"].values():
+                        _fix_schema(def_schema)
+
+        _fix_schema(schema)
+
+        # Build proper json_schema response_format
+        completion_kwargs["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "reformatted_output",
+                "schema": schema,
+                "strict": False,
+            },
+        }
+    except json.JSONDecodeError:
+        # Fallback to json_object if schema parsing fails
         completion_kwargs["response_format"] = {"type": "json_object"}
-    else:
+
+    # Add base_url if provided
+    if base_url is not None:
         completion_kwargs["base_url"] = base_url
-        completion_kwargs["api_key"] = api_key
 
     response = await acompletion(**completion_kwargs)
     reformatted_output = response.choices[0].message.content
@@ -287,7 +329,7 @@ async def agenerate(
         if isinstance(output_parser, ScriptOutputParser):
             raise e
         log.debug(
-            f"[red] Failed to parse result: {result}\nEncounter Exception {e}\nstart to reparse",
+            f"Failed to parse result: {result}\nEncounter Exception {e}\nstart to reparse",
             extra={"markup": True},
         )
         # Handle bad output reformatting
@@ -297,7 +339,6 @@ async def agenerate(
             bad_output_process_model or model_name,
             use_fixed_model_version,
             base_url=base_url,
-            api_key=api_key,
         )
         parsed_result = output_parser.parse(reformat_result)
 
