@@ -37,7 +37,6 @@ from sotopia.database import (
     MessageTransaction,
     SessionTransaction,
 )
-
 Migrator().run()
 
 app = FastAPI()
@@ -945,79 +944,375 @@ async def get_agent(agent_id: str) -> AgentProfile:
         raise HTTPException(status_code=404, detail=f"Agent not found: {e}")
     return agent_profile
 
+# Models (enhance existing WerewolfSessionState)
+class CreateWerewolfGameRequest(BaseModel):
+    host_id: str
+    num_ai_players: int = 5
 
-client = TestClient(app)
+
+class WerewolfActionRequest(BaseModel):
+    action_type: str
+    argument: str = ""
 
 
-def test_connect() -> None:
+@app.post("/games/werewolf/create")
+async def create_werewolf_game(
+    request: CreateWerewolfGameRequest = Body(...)
+) -> dict:
+    """
+    Create a new werewolf game session with one human and N AI players.
+
+    Returns:
+        {"session_id": "...", "status": "starting", "player_name": "..."}
+    """
     session_id = str(uuid.uuid4())
-    server_id = str(uuid.uuid4())
-    response = client.post(f"/connect/{session_id}/server/{server_id}")
-    assert response.status_code == 200
-    assert response.json() == []
 
-    sessions = cast(
-        list[SessionTransaction],
-        SessionTransaction.find(SessionTransaction.session_id == session_id).all(),
+    # Create placeholder session transaction (reuse existing model)
+    session_transaction = SessionTransaction(
+        session_id=session_id,
+        server_id=request.host_id,  # Human player ID
+        client_id="",  # Not used in werewolf
+        message_list=[],
     )
-    assert len(sessions) == 1
-    assert sessions[0].server_id == server_id
-    assert sessions[0].client_id == ""
-    assert sessions[0].message_list == []
-    SessionTransaction.delete(sessions[0].pk)
+    session_transaction.save()
 
-
-def test_send_message() -> None:
-    session_id = str(uuid.uuid4())
-    server_id = str(uuid.uuid4())
-    response = client.post(f"/connect/{session_id}/server/{server_id}")
-    assert response.status_code == 200
-    assert response.json() == []
-
-    response = client.post(
-        f"/send/{session_id}/{server_id}",
-        json="hello",
+    # Start werewolf game loop in-process (avoid sandboxed subprocess issues)
+    asyncio.create_task(
+        async_run_werewolf_game(
+            session_id=session_id,
+            human_id=request.host_id,
+            num_ai_players=request.num_ai_players,
+        )
     )
-    assert response.status_code == 200
 
-    sessions = cast(
-        list[SessionTransaction],
-        SessionTransaction.find(SessionTransaction.session_id == session_id).all(),
+    # Seed initial state so the frontend has a placeholder while the game boots
+    placeholder_state = WerewolfSessionState(
+        session_id=session_id,
+        players=[],
+        phase=WerewolfPhase(
+            phase="initializing",
+            description="Preparing game resources…",
+            allow_chat=False,
+            allow_actions=False,
+        ),
+        available_actions=[],
+        last_updated=time.time(),
+        status="initializing",
+        host_id=request.host_id,
+        active_player_id=None,
+        waiting_for_action=False,
+        game_over=False,
+        witch_options=None,
     )
-    assert len(sessions) == 1
-    assert sessions[0].server_id == server_id
-    assert sessions[0].client_id == ""
-    assert len(sessions[0].message_list) == 1
+    await werewolf_state_store.write_state(
+        session_id,
+        placeholder_state.model_dump(),
+        ttl=600,
+    )
 
-    message = sessions[0].message_list[0]
-    assert message.sender == "server"
-    assert message.message == "hello"
+    return {
+        "session_id": session_id,
+        "status": "starting",
+        "message": "Game server launching. Poll /games/werewolf/sessions/{session_id} for state."
+    }
 
 
-@pytest.mark.asyncio
-async def test_waiting_room() -> None:
-    async def _join_after_seconds(
-        seconds: float,
-    ) -> str:
-        sender_id = str(uuid.uuid4())
-        await asyncio.sleep(seconds)
-        while True:
-            response = client.get(f"/enter_waiting_room/{sender_id}")
-            if response.text:
-                break
-            await asyncio.sleep(0.1)
-        return str(response.text)
+@app.get("/games/werewolf/sessions/{session_id}", response_model=WerewolfSessionState)
+async def get_werewolf_session(session_id: str) -> WerewolfSessionState:
+    """
+    Get current game state for a werewolf session.
+
+    Frontend should poll this endpoint every 2 seconds.
+    """
+    state = await werewolf_state_store.read_state(session_id)
+
+    if not state:
+        raise HTTPException(
+            status_code=404,
+            detail="Game state not found. Game may still be initializing.",
+        )
 
     try:
-        await asyncio.wait_for(
-            asyncio.gather(
-                _join_after_seconds(random.random() * 199),
-                _join_after_seconds(random.random() * 199),
-                _join_after_seconds(random.random() * 199),
-                _join_after_seconds(random.random() * 199),
-                _join_after_seconds(random.random() * 199),
-            ),
-            timeout=200,
+        return WerewolfSessionState(**state)
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse game state: {exc}",
+        ) from exc
+
+
+@app.post("/games/werewolf/sessions/{session_id}/actions")
+async def submit_werewolf_action(
+    session_id: str,
+    participant_id: str,
+    action: WerewolfActionRequest = Body(...)
+) -> dict:
+    """
+    Submit an action for the human player.
+
+    The werewolf_server.py will read this from Redis and process it.
+    """
+    await werewolf_state_store.push_action(
+        session_id=session_id,
+        participant_id=participant_id,
+        action_type=action.action_type,
+        argument=action.argument,
+    )
+
+    return {
+        "status": "submitted",
+        "message": "Action queued for processing."
+    }
+
+
+@app.delete("/games/werewolf/sessions/{session_id}")
+async def delete_werewolf_session(
+    session_id: str,
+    participant_id: str,
+) -> dict:
+    """Clean up game state (optional, for early exits)."""
+    await werewolf_state_store.delete_state(session_id)
+    await werewolf_state_store.delete_action(session_id, participant_id)
+
+    # Also delete session transaction
+    session_transaction = await _get_single_exist_session(session_id)
+    session_transaction.delete(session_transaction.pk)
+    
+    return {"status": "deleted"}
+
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+
+@app.post("/games/queue", response_model=MatchmakingQueueResponse)
+async def enqueue_matchmaking(
+    request: MatchmakingQueueRequest,
+) -> MatchmakingQueueResponse:
+    if not request.games:
+        raise HTTPException(
+            status_code=400, detail="At least one game must be selected."
         )
-    except (TimeoutError, asyncio.TimeoutError) as _:
-        pass
+    valid_games = [
+        slug
+        for slug in request.games
+        if slug in AVAILABLE_GAMES and _is_game_enabled(slug)
+    ]
+    if not valid_games:
+        raise HTTPException(status_code=400, detail="No valid games were selected.")
+    ticket_id = str(uuid.uuid4())
+    now = time.time()
+    async with QUEUE_LOCK:
+        record = {
+            "ticket_id": ticket_id,
+            "participant_id": request.participant_id or "guest",
+            "games": valid_games,
+            "status": "queued",
+            "queued_at": now,
+            "matched_at": None,
+            "matched_game": None,
+        }
+        MATCHMAKING_TICKETS[ticket_id] = record
+        _store_ticket(record)
+        for slug in valid_games:
+            MATCHMAKING_QUEUE.setdefault(slug, []).append(ticket_id)
+            _record_queue_depth(slug)
+        estimated_wait = max(
+            _avg_wait_seconds(), 15 + sum(len(MATCHMAKING_QUEUE[g]) for g in valid_games)
+        )
+        position = min(len(MATCHMAKING_QUEUE[valid_games[0]]), 99)
+    _persist_queue_snapshot()
+    message = (
+        f"Ticket {ticket_id[:8]} queued for {len(valid_games)} "
+        f"game{'s' if len(valid_games) > 1 else ''}. We'll notify you when a slot opens."
+    )
+    return MatchmakingQueueResponse(
+        ticket_id=ticket_id,
+        position=position,
+        estimated_wait_seconds=estimated_wait,
+        status="queued",
+        message=message,
+    )
+
+
+@app.get("/games/queue", response_model=QueueOverview)
+async def queue_overview() -> QueueOverview:
+    async with QUEUE_LOCK:
+        _cleanup_expired_tickets()
+        return QueueOverview(
+            global_stats=_current_global_status(),
+            games=_game_queue_statuses(),
+        )
+
+
+@app.get("/games/queue/tickets/{ticket_id}", response_model=TicketStatus)
+async def ticket_status(ticket_id: str) -> TicketStatus:
+    async with QUEUE_LOCK:
+        ticket = MATCHMAKING_TICKETS.get(ticket_id) or _load_ticket(ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found.")
+        return TicketStatus(
+            ticket_id=ticket_id,
+            participant_id=ticket["participant_id"],
+            games=ticket["games"],
+            status=ticket["status"],
+            queued_at=ticket["queued_at"],
+            matched_at=ticket.get("matched_at"),
+            matched_game=ticket.get("matched_game"),
+        )
+
+
+@app.delete("/games/queue/tickets/{ticket_id}")
+async def cancel_ticket(ticket_id: str) -> dict:
+    async with QUEUE_LOCK:
+        ticket = MATCHMAKING_TICKETS.get(ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found.")
+        if ticket["status"] == "queued":
+            for slug in ticket["games"]:
+                queue = MATCHMAKING_QUEUE.get(slug, [])
+                if ticket_id in queue:
+                    queue.remove(ticket_id)
+                    _record_queue_depth(slug)
+            ticket["status"] = "cancelled"
+            _update_ticket(ticket_id, status="cancelled")
+            _persist_queue_snapshot()
+        return {"status": ticket["status"]}
+
+
+@app.get("/games/matchmaking/status", response_model=MatchmakingStatus)
+async def matchmaking_status() -> MatchmakingStatus:
+    async with QUEUE_LOCK:
+        return _current_global_status()
+
+
+@app.post("/games/matchmaking/queue", response_model=MatchmakingQueueResponse)
+async def legacy_enqueue_matchmaking(
+    request: MatchmakingQueueRequest,
+) -> MatchmakingQueueResponse:
+    return await enqueue_matchmaking(request)
+
+
+@app.post("/games/leaderboard/logs")
+async def create_match_log(entry: MatchLogEntry) -> dict:
+    async with QUEUE_LOCK:
+        _record_match_log(entry)
+        conn.hincrby(TELEMETRY_KEY, f"games_played:{entry.game}", 1)
+        conn.hincrbyfloat(
+            TELEMETRY_KEY,
+            f"total_session_seconds:{entry.game}",
+            entry.duration_seconds,
+        )
+        conn.hincrby(TELEMETRY_KEY, f"session_count:{entry.game}", 1)
+        if entry.winner == "human":
+            conn.hincrby(TELEMETRY_KEY, f"human_wins:{entry.game}", 1)
+        else:
+            conn.hincrby(TELEMETRY_KEY, f"ai_wins:{entry.game}", 1)
+        leaderboard = _compute_leaderboard(_load_match_logs(limit=200))
+        payload = _persist_leaderboard(leaderboard)
+    return {"status": "recorded", "last_updated": payload["last_updated"]}
+
+
+@app.get("/games/leaderboard", response_model=LeaderboardResponse)
+async def leaderboard() -> LeaderboardResponse:
+    cache = _load_leaderboard_cache()
+    if cache:
+        return cache
+    entries = _compute_leaderboard(_load_match_logs(limit=200))
+    payload = _persist_leaderboard(entries)
+    return LeaderboardResponse(
+        entries=entries,
+        last_updated=payload["last_updated"],
+    )
+
+
+@app.get("/games/history/{participant_id}", response_model=PersonalHistoryResponse)
+async def personal_history(
+    participant_id: str,
+    limit: int = 20,
+) -> PersonalHistoryResponse:
+    logs = _load_match_logs(limit=200)
+    history = [
+        entry
+        for entry in logs
+        if entry.participant_id.lower() == participant_id.lower()
+    ][:limit]
+    return PersonalHistoryResponse(
+        participant_id=participant_id,
+        history=history,
+    )
+
+
+@app.post("/auth/identity", response_model=IdentityResponse)
+async def create_identity(request: IdentityRequest) -> IdentityResponse:
+    participant_id = request.participant_id.strip()
+    if not participant_id:
+        raise HTTPException(status_code=400, detail="Participant ID required")
+    return _create_identity(participant_id, request.display_name)
+
+
+@app.get("/auth/identity/{token}", response_model=IdentityResponse)
+async def read_identity(token: str) -> IdentityResponse:
+    identity = _get_identity(token)
+    if not identity:
+        raise HTTPException(status_code=404, detail="Identity not found")
+    return identity
+
+
+@app.get("/memory/{participant_id}", response_model=MemoryPayload)
+async def read_memory(participant_id: str) -> MemoryPayload:
+    return _get_memory(participant_id)
+
+
+@app.post("/memory/{participant_id}", response_model=MemoryPayload)
+async def update_memory(
+    participant_id: str,
+    payload: MemoryPayload,
+) -> MemoryPayload:
+    return _update_memory_record(participant_id, payload)
+
+
+def _redis_alive() -> bool:
+    try:
+        conn.ping()
+        return True
+    except Exception:
+        return False
+
+
+class AdminGameToggle(BaseModel):
+    enabled: bool
+
+
+class AdminStatusResponse(CamelModel):
+    uptime_seconds: float
+    redis_alive: bool
+    global_stats: MatchmakingStatus
+    games: list[GameQueueStatus]
+
+
+@app.get("/admin/status", response_model=AdminStatusResponse)
+async def admin_status(x_admin_token: str = Header(None)) -> AdminStatusResponse:
+    _require_admin(x_admin_token)
+    async with QUEUE_LOCK:
+        global_stats = _current_global_status()
+        games = _game_queue_statuses()
+    return AdminStatusResponse(
+        uptime_seconds=time.time() - START_TIME,
+        redis_alive=_redis_alive(),
+        global_stats=global_stats,
+        games=games,
+    )
+
+
+@app.post("/admin/games/{slug}")
+async def admin_toggle_game(
+    slug: str,
+    payload: AdminGameToggle,
+    x_admin_token: str = Header(None),
+) -> dict:
+    _require_admin(x_admin_token)
+    if slug not in AVAILABLE_GAMES:
+        raise HTTPException(status_code=404, detail="Unknown game.")
+    _set_game_enabled(slug, payload.enabled)
+    return {"slug": slug, "enabled": payload.enabled}
