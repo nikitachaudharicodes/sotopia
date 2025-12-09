@@ -19,6 +19,23 @@ export const games: GameSummary[] = [
         },
     },
     {
+        slug: "prisoners-dilemma",
+        title: "Prisoner's Dilemma",
+        summary:
+            "Two prisoners choose to cooperate or defect in a single, simultaneous decision.",
+        tags: ["game theory", "simultaneous", "available"],
+        accentColor: "#facc15",
+        minPlayers: 2,
+        maxPlayers: 2,
+        estDurationMinutes: 2,
+        status: "online",
+        features: {
+            teamChat: false,
+            spectators: false,
+            hasLeaderboard: false,
+        },
+    },
+    {
         slug: "secret-mafia",
         title: "Secret Mafia",
         summary:
