@@ -26,6 +26,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from games.prisoners_dilemma.pd_server import async_run_pd_game
 from games.prisoners_dilemma.pd_state import PDStateStore
+from games.public_goods.pg_server import async_run_pg_game
+from games.public_goods.pg_state import PGStateStore
 from games.werewolf.werewolf_state import (
     WerewolfStateStore,
     action_key as werewolf_action_key,
@@ -62,6 +64,7 @@ WEREWOLF_SERVER_PATH = (
 WEREWOLF_STATE_PREFIX = "werewolf:session"
 werewolf_state_store = WerewolfStateStore(REDIS_URL)
 pd_state_store = PDStateStore(REDIS_URL)
+pg_state_store = PGStateStore(REDIS_URL)
 
 WAITING_ROOM_TIMEOUT = float(os.environ.get("WAITING_ROOM_TIMEOUT", 1.0))
 
@@ -75,6 +78,11 @@ AVAILABLE_GAMES: dict[str, dict[str, typing.Any]] = {
         "title": "Prisoner's Dilemma",
         "est_duration": 120,
         "max_parallel_sessions": 16,
+    },
+    "public-goods": {
+        "title": "Public Goods Game",
+        "est_duration": 180,
+        "max_parallel_sessions": 8,
     },
     "secret-mafia": {
         "title": "Secret Mafia",
@@ -974,6 +982,17 @@ class PrisonersDilemmaActionRequest(BaseModel):
     argument: str
 
 
+class CreatePublicGoodsRequest(BaseModel):
+    host_id: str
+    communication_mode: Literal["communication", "no-communication"] = "no-communication"
+    rounds: int = 1
+
+
+class PublicGoodsActionRequest(BaseModel):
+    action_type: str
+    argument: str
+
+
 class PrisonersDilemmaSessionState(CamelModel):
     session_id: str
     players: list[WerewolfPlayer]
@@ -990,6 +1009,30 @@ class PrisonersDilemmaSessionState(CamelModel):
     total_rounds: int = 1
     round_logs: list[dict[str, typing.Any]] = Field(default_factory=list)
     totals: dict[str, int] = Field(default_factory=dict)
+    interpretation: Optional[str] = None
+    active_player_id: Optional[str] = None
+    last_updated: float
+    host_id: Optional[str] = None
+
+
+class PublicGoodsSessionState(CamelModel):
+    session_id: str
+    players: list[WerewolfPlayer]
+    me: Optional[WerewolfPlayer] = None
+    phase: WerewolfPhase
+    available_actions: list[str]
+    status: str
+    waiting_for_action: bool
+    game_over: bool
+    choices: dict[str, str] = Field(default_factory=dict)
+    numeric_contributions: dict[str, int] = Field(default_factory=dict)
+    payoffs: dict[str, float] = Field(default_factory=dict)
+    total_pool: Optional[float] = None
+    communication_mode: str
+    current_round: int = 1
+    total_rounds: int = 1
+    round_logs: list[dict[str, typing.Any]] = Field(default_factory=list)
+    totals: dict[str, float] = Field(default_factory=dict)
     interpretation: Optional[str] = None
     active_player_id: Optional[str] = None
     last_updated: float
@@ -1228,6 +1271,114 @@ async def delete_prisoners_dilemma_session(
 ) -> dict:
     await pd_state_store.delete_state(session_id)
     await pd_state_store.delete_action(session_id, participant_id)
+    return {"status": "deleted"}
+
+
+@app.post("/games/public-goods/create")
+async def create_public_goods_game(
+    request: CreatePublicGoodsRequest = Body(...),
+) -> dict:
+    session_id = str(uuid.uuid4())
+    mode = request.communication_mode.lower()
+    if mode not in {"communication", "no-communication"}:
+        raise HTTPException(status_code=400, detail="Invalid communication mode.")
+    rounds = max(1, request.rounds)
+
+    session_transaction = SessionTransaction(
+        session_id=session_id,
+        server_id=request.host_id,
+        client_id="",
+        message_list=[],
+    )
+    session_transaction.save()
+
+    asyncio.create_task(
+        async_run_pg_game(
+            session_id=session_id,
+            human_id=request.host_id,
+            state_store=pg_state_store,
+            communication_mode=mode,
+            total_rounds=rounds,
+        )
+    )
+
+    placeholder_state = PublicGoodsSessionState(
+        session_id=session_id,
+        players=[],
+        phase=WerewolfPhase(
+            phase="initializing",
+            description="Preparing game resources…",
+            allow_chat=False,
+            allow_actions=False,
+        ),
+        available_actions=[],
+        status="initializing",
+        waiting_for_action=False,
+        game_over=False,
+        choices={},
+        numeric_contributions={},
+        payoffs={},
+        total_pool=0.0,
+        communication_mode=mode,
+        current_round=1,
+        total_rounds=rounds,
+        round_logs=[],
+        totals={},
+        interpretation=None,
+        active_player_id=None,
+        last_updated=time.time(),
+        host_id=request.host_id,
+    )
+    await pg_state_store.write_state(
+        session_id,
+        placeholder_state.model_dump(),
+        ttl=600,
+    )
+    return {
+        "session_id": session_id,
+        "status": "starting",
+        "message": "Game server launching. Poll /games/public-goods/sessions/{session_id} for state.",
+    }
+
+
+@app.get(
+    "/games/public-goods/sessions/{session_id}",
+    response_model=PublicGoodsSessionState,
+)
+async def get_public_goods_session(session_id: str) -> PublicGoodsSessionState:
+    state = await pg_state_store.read_state(session_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Game state not found.")
+    try:
+        return PublicGoodsSessionState(**state)
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(
+            status_code=500, detail=f"Failed to parse game state: {exc}"
+        ) from exc
+
+
+@app.post("/games/public-goods/sessions/{session_id}/actions")
+async def submit_public_goods_action(
+    session_id: str,
+    participant_id: str,
+    action: PublicGoodsActionRequest = Body(...),
+) -> dict:
+    await pg_state_store.push_action(
+        session_id=session_id,
+        participant_id=participant_id,
+        action_type=action.action_type,
+        argument=action.argument,
+    )
+    return {"status": "submitted"}
+
+
+@app.delete("/games/public-goods/sessions/{session_id}")
+async def delete_public_goods_session(
+    session_id: str,
+    participant_id: str,
+) -> dict:
+    await pg_state_store.delete_state(session_id)
+    await pg_state_store.delete_action(session_id, participant_id)
     return {"status": "deleted"}
 
 
