@@ -26,6 +26,7 @@ type GameModuleLoader = () => Promise<{
 const moduleLoaders: Record<string, GameModuleLoader> = {
     werewolf: async () => import("@/games/werewolf"),
     "prisoners-dilemma": async () => import("@/games/prisoners-dilemma"),
+    "public-goods": async () => import("@/games/public-goods"),
 };
 
 export function GameExperience({ slug }: GameExperienceProps) {
