@@ -36,6 +36,23 @@ export const games: GameSummary[] = [
         },
     },
     {
+        slug: "public-goods",
+        title: "Public Goods Game",
+        summary:
+            "Three players contribute to a shared pool. Decide whether to invest or free-ride each round.",
+        tags: ["game theory", "multi-agent", "available"],
+        accentColor: "#34d399",
+        minPlayers: 3,
+        maxPlayers: 3,
+        estDurationMinutes: 4,
+        status: "online",
+        features: {
+            teamChat: true,
+            spectators: false,
+            hasLeaderboard: false,
+        },
+    },
+    {
         slug: "secret-mafia",
         title: "Secret Mafia",
         summary:
