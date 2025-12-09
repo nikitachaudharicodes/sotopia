@@ -1,0 +1,36 @@
+{
+  "scenario": "Public Goods Game",
+  "description": "Three players choose discrete contribution levels to a shared pool. Payoffs are computed externally.",
+  "agents": [
+    { "name": "Player A", "role": "PG_Player" },
+    { "name": "Player B", "role": "PG_Player" },
+    { "name": "Player C", "role": "PG_Player" }
+  ],
+  "initial_state": "Contribution",
+  "state_transition": {
+    "Contribution": "Reveal",
+    "Reveal": "End"
+  },
+  "state_properties": {
+    "Contribution": {
+      "acting_roles": ["PG_Player"],
+      "actions": ["action"],
+      "action_order": "simultaneous",
+      "visibility": "private",
+      "description": "Choose a contribution level."
+    },
+    "Reveal": {
+      "actions": [],
+      "visibility": "public",
+      "description": "Reveal and score."
+    },
+    "End": {
+      "actions": [],
+      "visibility": "public",
+      "description": "Game complete."
+    }
+  },
+  "end_conditions": [
+    { "type": "terminal", "winner": "none", "message": "Game finished." }
+  ]
+}
