@@ -24,11 +24,11 @@ from redis_om import Migrator
 from starlette.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from .games.werewolf.werewolf_state import (
+from games.werewolf.werewolf_state import (
     WerewolfStateStore,
     action_key as werewolf_action_key,
 )
-from .games.werewolf.werewolf_server import async_run_werewolf_game
+from games.werewolf.werewolf_server import async_run_werewolf_game
 
 from sotopia.database import (
     AgentProfile,
