@@ -18,9 +18,9 @@ interface GameExperienceProps {
 }
 
 type GameModuleLoader = () => Promise<{
-    default?: GameDefinition;
-    werewolfGame?: GameDefinition;
-    werewolfNewGame?: GameDefinition;
+    default?: GameDefinition<any>;
+    werewolfGame?: GameDefinition<any>;
+    werewolfNewGame?: GameDefinition<any>;
 }>;
 
 const moduleLoaders: Record<string, GameModuleLoader> = {
@@ -30,7 +30,7 @@ const moduleLoaders: Record<string, GameModuleLoader> = {
 };
 
 export function GameExperience({ slug }: GameExperienceProps) {
-    const [game, setGame] = useState<GameDefinition | null>(null);
+    const [game, setGame] = useState<GameDefinition<any> | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
 
     const summary = useMemo(() => getGameBySlug(slug), [slug]);
