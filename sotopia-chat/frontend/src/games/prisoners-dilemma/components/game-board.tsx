@@ -351,7 +351,7 @@ export function PrisonersDilemmaGameBoard({
                         {participantId || "Unknown"}
                     </p>
                 </div>
-                {error && (
+                {!!error && (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-destructive">
                         Failed to load session:{" "}
                         {error instanceof Error ? error.message : "Unknown error"}
