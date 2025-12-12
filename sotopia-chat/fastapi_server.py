@@ -24,15 +24,15 @@ from redis_om import Migrator
 from starlette.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
-from games.prisoners_dilemma.pd_server import async_run_pd_game
-from games.prisoners_dilemma.pd_state import PDStateStore
-from games.public_goods.pg_server import async_run_pg_game
-from games.public_goods.pg_state import PGStateStore
-from games.werewolf.werewolf_state import (
+from .games.prisoners_dilemma.pd_server import async_run_pd_game
+from .games.prisoners_dilemma.pd_state import PDStateStore
+from .games.public_goods.pg_server import async_run_pg_game
+from .games.public_goods.pg_state import PGStateStore
+from .games.werewolf.werewolf_state import (
     WerewolfStateStore,
     action_key as werewolf_action_key,
 )
-from games.werewolf.werewolf_server import async_run_werewolf_game
+from .games.werewolf.werewolf_server import async_run_werewolf_game
 
 from sotopia.database import (
     AgentProfile,

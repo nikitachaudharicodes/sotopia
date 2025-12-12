@@ -46,15 +46,15 @@ export interface GameSummary {
     maxPlayers?: number;
     estDurationMinutes?: number;
     status?: GameStatus;
-}
-
-export interface GameDefinition<TSession = unknown>
-    extends GameSummary {
     features?: {
         teamChat?: boolean;
         spectators?: boolean;
         hasLeaderboard?: boolean;
     };
+}
+
+export interface GameDefinition<TSession = unknown>
+    extends GameSummary {
     components: {
         Consent: ComponentType<ConsentComponentProps>;
         Lobby: ComponentType<LobbyComponentProps>;
