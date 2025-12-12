@@ -17,11 +17,13 @@ interface GameExperienceProps {
     slug: string;
 }
 
-type GameModuleLoader = () => Promise<{
-    default?: GameDefinition<any>;
-    werewolfGame?: GameDefinition<any>;
-    werewolfNewGame?: GameDefinition<any>;
-}>;
+type LoadedGameModule = {
+    default?: GameDefinition<unknown>;
+    werewolfGame?: GameDefinition<unknown>;
+    werewolfNewGame?: GameDefinition<unknown>;
+};
+
+type GameModuleLoader = () => Promise<unknown>;
 
 const moduleLoaders: Record<string, GameModuleLoader> = {
     werewolf: async () => import("@/games/werewolf"),
@@ -30,7 +32,7 @@ const moduleLoaders: Record<string, GameModuleLoader> = {
 };
 
 export function GameExperience({ slug }: GameExperienceProps) {
-    const [game, setGame] = useState<GameDefinition<any> | null>(null);
+    const [game, setGame] = useState<GameDefinition<unknown> | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
 
     const summary = useMemo(() => getGameBySlug(slug), [slug]);
@@ -52,7 +54,7 @@ export function GameExperience({ slug }: GameExperienceProps) {
                 return;
             }
             try {
-                const mod = await loader();
+                const mod = (await loader()) as LoadedGameModule;
                 const definition =
                     mod.werewolfGame ??
                     mod.werewolfNewGame ??
