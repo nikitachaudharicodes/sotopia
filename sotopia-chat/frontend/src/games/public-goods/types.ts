@@ -33,7 +33,7 @@ export interface PublicGoodsSessionState {
     choices: Record<string, string>;
     numericContributions: Record<string, number>;
     payoffs: Record<string, number>;
-    totalPool?: number | null;
+    totalPool: number;
     communicationMode: string;
     currentRound: number;
     totalRounds: number;

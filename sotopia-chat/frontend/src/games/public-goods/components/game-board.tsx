@@ -321,7 +321,7 @@ export function PublicGoodsGameBoard({
                         {participantId || "Unknown"}
                     </p>
                 </div>
-                {session?.totalPool !== undefined && session.totalPool > 0 && (
+                {typeof session?.totalPool === "number" && session.totalPool > 0 && (
                     <div className="rounded-xl border bg-emerald-50 p-4 text-sm text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-100">
                         <p className="font-semibold">Current Pool</p>
                         <p className="text-2xl font-bold">
@@ -332,7 +332,7 @@ export function PublicGoodsGameBoard({
                         </p>
                     </div>
                 )}
-                {error && (
+                {!!error && (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-destructive">
                         Failed to load session:{" "}
                         {error instanceof Error ? error.message : "Unknown error"}

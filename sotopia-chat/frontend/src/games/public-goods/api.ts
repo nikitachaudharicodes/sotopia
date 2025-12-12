@@ -135,7 +135,7 @@ export async function getPublicGoodsSession(
             ) ?? {}) as Record<string, number>,
         payoffs: (raw.payoffs as Record<string, number>) ?? {},
         totalPool:
-            resolveProp<number>(raw, "totalPool", "total_pool") ?? undefined,
+            resolveProp<number>(raw, "totalPool", "total_pool") ?? 0,
         communicationMode:
             resolveProp<string>(raw, "communicationMode", "communication_mode") ??
             "no-communication",
