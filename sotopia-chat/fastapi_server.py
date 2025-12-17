@@ -24,6 +24,11 @@ from redis_om import Migrator
 from starlette.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 
+# Make sure repositories like examples/ are importable when the service root is sotopia-chat/.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.append(str(REPO_ROOT))
+
 from games.prisoners_dilemma.pd_server import async_run_pd_game
 from games.prisoners_dilemma.pd_state import PDStateStore
 from games.public_goods.pg_server import async_run_pg_game
