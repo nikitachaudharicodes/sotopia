@@ -172,3 +172,4 @@ redis-stack-server-*/
 examples/experimental/negotiation_arena/redis-data/*
 *.rdb
 *.dot
+sotopia-chatbot/
