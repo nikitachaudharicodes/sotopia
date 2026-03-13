@@ -3,15 +3,18 @@
 import { useState, useCallback } from "react";
 import useSWR from "swr";
 import { fetchMemory, updateMemory, type MemoryPayload } from "@/lib/api";
+import { getStoredToken } from "@/lib/auth-api";
 
 export function usePlayerMemory(participantId: string | null) {
+    // Only fetch memory when authenticated (backend requires auth)
+    const shouldFetch = Boolean(participantId && getStoredToken());
     const {
         data,
         error,
         isLoading,
         mutate,
     } = useSWR<MemoryPayload>(
-        participantId ? ["memory", participantId] : null,
+        shouldFetch ? ["memory", participantId] : null,
         () => fetchMemory(participantId as string)
     );
 

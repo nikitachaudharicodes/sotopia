@@ -7,6 +7,7 @@ import {
     fetchIdentity,
     type IdentityRecord,
 } from "@/lib/api";
+import { getStoredToken, getStoredUser } from "@/lib/auth-api";
 
 const STORAGE_KEY = "arena_identity_token";
 
@@ -19,9 +20,37 @@ export function useIdentity() {
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const stored = window.localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            setToken(stored);
+        
+        // First check if user is authenticated with JWT
+        const jwtToken = getStoredToken();
+        const jwtUser = getStoredUser();
+        
+        if (jwtToken && jwtUser) {
+            // User is authenticated - auto-register identity using their pk
+            const autoRegister = async () => {
+                try {
+                    const record = await registerIdentity({
+                        participantId: jwtUser.pk,
+                        displayName: jwtUser.username,
+                    });
+                    setToken(record.token);
+                    window.localStorage.setItem(STORAGE_KEY, record.token);
+                } catch (err) {
+                    console.error("Auto-register identity failed:", err);
+                    // Fall back to stored identity token
+                    const stored = window.localStorage.getItem(STORAGE_KEY);
+                    if (stored) {
+                        setToken(stored);
+                    }
+                }
+            };
+            autoRegister();
+        } else {
+            // Not authenticated - use stored identity token
+            const stored = window.localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                setToken(stored);
+            }
         }
     }, []);
 
