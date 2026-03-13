@@ -27,8 +27,6 @@ type GameModuleLoader = () => Promise<unknown>;
 
 const moduleLoaders: Record<string, GameModuleLoader> = {
     werewolf: async () => import("@/games/werewolf"),
-    "prisoners-dilemma": async () => import("@/games/prisoners-dilemma"),
-    "public-goods": async () => import("@/games/public-goods"),
 };
 
 export function GameExperience({ slug }: GameExperienceProps) {
@@ -121,6 +119,12 @@ function LoadedGameExperience({ game, slug }: { game: GameDefinition; slug: stri
     const [consentAccepted, setConsentAccepted] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [participantId, setParticipantId] = useState<string | null>(null);
+    const [humanAgentInfo, setHumanAgentInfo] = useState<{
+        name: string;
+        role: string;
+        team: string;
+        index: number;
+    } | null>(null);
     const router = useRouter();
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const [dossierOpen, setDossierOpen] = useState(false);
@@ -128,15 +132,34 @@ function LoadedGameExperience({ game, slug }: { game: GameDefinition; slug: stri
     const playerId = identity.identity?.participantId || null;
     const memory = usePlayerMemory(playerId);
 
-    const sessionHook = game.hooks.useSession(sessionId, participantId);
+    // Initialize actions hook first so we can get setWebSocket
     const [actionsState, actionsControls] = game.hooks.useActions(
         sessionId,
         participantId
     );
 
-    const handleGameCreated = (newSessionId: string, newParticipantId: string) => {
+    // Pass onWebSocketReady and human agent info to the session hook
+    const sessionHook = game.hooks.useSession(sessionId, participantId, {
+        onWebSocketReady: (ws: unknown) => {
+            // Connect the WebSocket to the actions hook for sending CLIENT_MSG
+            if ('setWebSocket' in actionsControls && typeof actionsControls.setWebSocket === 'function') {
+                actionsControls.setWebSocket(ws as Parameters<typeof actionsControls.setWebSocket>[0]);
+            }
+        },
+        humanAgentName: humanAgentInfo?.name,
+        humanAgentIndex: humanAgentInfo?.index,
+    });
+
+    const handleGameCreated = (
+        newSessionId: string,
+        newParticipantId: string,
+        agentInfo?: { name: string; role: string; team: string; index: number }
+    ) => {
         setSessionId(newSessionId);
         setParticipantId(newParticipantId);
+        if (agentInfo) {
+            setHumanAgentInfo(agentInfo);
+        }
     };
 
     const showLobby = !sessionId || !participantId;
