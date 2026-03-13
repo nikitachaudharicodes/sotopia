@@ -1,10 +1,9 @@
 /**
- * Hook for submitting werewolf game actions
+ * Hook for submitting werewolf game actions via WebSocket
  */
 
-import { useCallback, useState } from "react";
-import { submitWerewolfAction } from "@/games/werewolf/api";
-import type { WerewolfAction } from "@/games/werewolf/api";
+import { useCallback, useState, useRef } from "react";
+import type { SimulationWebSocket } from "@/lib/websocket-utils";
 
 export interface WerewolfActionsState {
     isSubmitting: boolean;
@@ -14,6 +13,7 @@ export interface WerewolfActionsState {
 export interface WerewolfActionsControls {
     submitAction: (actionType: string, argument: string) => Promise<void>;
     clearError: () => void;
+    setWebSocket: (ws: unknown) => void;
 }
 
 export function useWerewolfActions(
@@ -22,31 +22,44 @@ export function useWerewolfActions(
 ): [WerewolfActionsState, WerewolfActionsControls] {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [lastError, setLastError] = useState<string | undefined>(undefined);
+    const wsRef = useRef<SimulationWebSocket | null>(null);
+
+    const setWebSocket = useCallback((ws: unknown) => {
+        wsRef.current = ws as SimulationWebSocket | null;
+    }, []);
 
     const submitAction = useCallback(
         async (actionType: string, argument: string) => {
-            if (!sessionId || !participantId) {
-                setLastError("Missing session or participant information");
+            if (!wsRef.current) {
+                setLastError("WebSocket not connected");
+                console.error("[Actions] WebSocket not connected");
                 return;
             }
 
-            try {
-                setIsSubmitting(true);
-                setLastError(undefined);
+            if (!sessionId || !participantId) {
+                setLastError("Session or participant ID missing");
+                console.error("[Actions] Session or participant ID missing");
+                return;
+            }
 
-                const action: WerewolfAction = {
+            setIsSubmitting(true);
+            setLastError(undefined);
+
+            try {
+                // Send CLIENT_MSG with the action
+                const message = {
+                    session_id: sessionId,
+                    participant_id: participantId,
                     action_type: actionType,
-                    argument: argument.trim(),
+                    content: argument,
+                    timestamp: new Date().toISOString(),
                 };
 
-                await submitWerewolfAction(sessionId, participantId, action);
+                wsRef.current.sendClientMessage(message);
             } catch (error) {
-                console.error("Failed to submit action:", error);
-                setLastError(
-                    error instanceof Error
-                        ? error.message
-                        : "Failed to submit action"
-                );
+                const errorMsg = error instanceof Error ? error.message : "Failed to send action";
+                setLastError(errorMsg);
+                console.error("[Actions] Error sending action:", error);
             } finally {
                 setIsSubmitting(false);
             }
@@ -58,5 +71,8 @@ export function useWerewolfActions(
         setLastError(undefined);
     }, []);
 
-    return [{ isSubmitting, lastError }, { submitAction, clearError }];
+    return [
+        { isSubmitting, lastError },
+        { submitAction, clearError, setWebSocket },
+    ];
 }
