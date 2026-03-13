@@ -2,7 +2,7 @@
 
 /* eslint-disable react/no-unescaped-entities */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type {
     WerewolfPlayer,
     WerewolfPhase,
@@ -590,13 +590,18 @@ export function GameOverScreen({
 interface PackPanelProps {
     members: PackMember[];
     chat: PackChatMessage[];
+    onSend?: (message: string) => Promise<void> | void;
 }
 
-export function PackPanel({ members, chat }: PackPanelProps) {
-    const latestMessages = useMemo(
-        () => chat.slice(-10).reverse(),
-        [chat]
-    );
+export function PackPanel({ members, chat, onSend }: PackPanelProps) {
+    const latestMessages = useMemo(() => chat.slice(-10).reverse(), [chat]);
+    const [draft, setDraft] = useState("");
+    const [localCache, setLocalCache] = useState<PackChatMessage[]>(() => chat);
+
+    // Keep local cache in sync with server-sent chat
+    useEffect(() => {
+        setLocalCache(chat ?? []);
+    }, [chat]);
 
     return (
         <div className="space-y-4 rounded-lg border border-border bg-card/70 p-4">
@@ -644,7 +649,7 @@ export function PackPanel({ members, chat }: PackPanelProps) {
                     </p>
                 ) : (
                     <ul className="mt-2 space-y-2 text-xs">
-                        {latestMessages.map((entry, idx) => (
+                        {localCache.slice(-10).reverse().map((entry, idx) => (
                             <li
                                 key={`${entry.recordedAt ?? idx}-${idx}`}
                                 className="rounded-md bg-muted/60 p-2 text-muted-foreground"
@@ -659,6 +664,47 @@ export function PackPanel({ members, chat }: PackPanelProps) {
                         ))}
                     </ul>
                 )}
+                <div className="mt-3 flex items-center gap-2">
+                    <input
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && draft.trim().length) {
+                                const msg = draft.trim();
+                                // Optimistically append
+                                setLocalCache((prev) => [
+                                    ...prev,
+                                    { message: msg, recordedAt: Math.floor(Date.now() / 1000) },
+                                ]);
+                                setDraft("");
+                                if (onSend) {
+                                    try {
+                                        void onSend(msg);
+                                    } catch (err) {
+                                        console.error("Failed to send pack chat:", err);
+                                    }
+                                }
+                            }
+                        }}
+                        placeholder={members.length === 0 ? "No packmates yet" : "Send to pack..."}
+                        className="flex-1 rounded-md border border-border bg-card px-3 py-2 text-xs"
+                    />
+                    <button
+                        onClick={() => {
+                            if (!draft.trim()) return;
+                            const msg = draft.trim();
+                            setLocalCache((prev) => [
+                                ...prev,
+                                { message: msg, recordedAt: Math.floor(Date.now() / 1000) },
+                            ]);
+                            setDraft("");
+                            if (onSend) void onSend(msg);
+                        }}
+                        className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground"
+                    >
+                        Send
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -676,8 +722,8 @@ function getPhaseRules(phase: string): React.ReactNode {
     const rules: Record<string, React.ReactNode> = {
         night_werewolves: (
             <p>
-                <strong>Werewolves:</strong> Secretly choose a victim using the
-                "action" command with "kill [NAME]".
+                <strong>Werewolves:</strong> Discuss in pack chat and agree on a victim.
+                All werewolves must choose the same target using "kill [NAME]" for the kill to succeed.
             </p>
         ),
         night_seer: (

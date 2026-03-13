@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { WerewolfSessionState } from "@/games/werewolf/types";
+import type {
+    WerewolfSessionState,
+    WerewolfPhaseLogEntry,
+    WerewolfActionLog,
+} from "@/games/werewolf/types";
 import type { GameBoardProps } from "@/core/types/game-module";
 import {
     PlayerList,
@@ -43,7 +47,7 @@ export function WerewolfGameBoard({
             return;
         }
 
-        const sessionLog = session.log as Array<Record<string, unknown>>;
+        const sessionLog = session.log as WerewolfPhaseLogEntry[];
 
         const stripTag = (value: unknown): string | null => {
             if (typeof value !== "string") return null;
@@ -51,13 +55,8 @@ export function WerewolfGameBoard({
             return cleaned.length ? cleaned : null;
         };
 
-        const describeAction = (
-            phase: string,
-            actor: string,
-            actionValue: Record<string, unknown>
-        ): string | null => {
-            const actionType = actionValue["action_type"];
-            const argumentRaw = actionValue["argument"];
+        const describeAction = (actionValue: WerewolfActionLog): string | null => {
+            const { actor, action_type: actionType, argument: argumentRaw } = actionValue;
             const argument =
                 typeof argumentRaw === "string" ? argumentRaw.trim() : "";
             const lowerArgument = argument.toLowerCase();
@@ -112,7 +111,7 @@ export function WerewolfGameBoard({
 
             if (actionType === "speak") {
                 return argument
-                    ? `${actor} says: ${argument}`
+                    ? `${actor}: ${argument}`
                     : `${actor} says something.`;
             }
 
@@ -127,6 +126,7 @@ export function WerewolfGameBoard({
 
         setActionHistory((prev) => {
             const existing = new Set(prev.map((entry) => entry.id));
+            const seenMessages = new Set<string>();
             const next = [...prev];
 
             const pushMessage = (
@@ -136,8 +136,11 @@ export function WerewolfGameBoard({
                 key: string
             ) => {
                 if (!action) return;
-                if (existing.has(key)) return;
+                // Deduplicate by message content as well as key
+                const msgKey = `${phase}:${action}`;
+                if (existing.has(key) || seenMessages.has(msgKey)) return;
                 existing.add(key);
+                seenMessages.add(msgKey);
                 next.push({
                     id: key,
                     phase,
@@ -157,37 +160,34 @@ export function WerewolfGameBoard({
                         ? entry.recorded_at * 1000
                         : Date.now() + idx;
 
-                const formattedActions: string[] = [];
-                if (entry.actions && typeof entry.actions === "object") {
-                    Object.entries(entry.actions).forEach(
-                        ([actor, actionValue]) => {
-                            if (
-                                !actionValue ||
-                                typeof actionValue !== "object"
-                            ) {
-                                return;
-                            }
-                            const description = describeAction(
-                                phase,
-                                actor,
-                                actionValue as Record<string, unknown>
-                            );
-                            if (description) {
-                                formattedActions.push(description);
-                            }
-                        }
-                    );
-                }
+                const formattedActions: Array<{
+                    message: string;
+                    actor: string;
+                    offset: number;
+                }> = [];
+                const actionMessages = Array.isArray(entry.actions)
+                    ? entry.actions
+                    : [];
+                actionMessages.forEach((actionValue, actionIdx) => {
+                    const description = describeAction(actionValue);
+                    if (description) {
+                        formattedActions.push({
+                            message: description,
+                            actor: actionValue.actor,
+                            offset: actionIdx,
+                        });
+                    }
+                });
 
                 let actionsInserted = false;
                 const maybeInsertActions = () => {
                     if (!actionsInserted && formattedActions.length) {
-                        formattedActions.forEach((msg, actionIdx) =>
+                        formattedActions.forEach(({ message, actor, offset }) =>
                             pushMessage(
                                 phase,
-                                msg,
-                                baseTimestamp + actionIdx,
-                                `${phase}:${entry.turn}:${msg}`
+                                message,
+                                baseTimestamp + offset,
+                                `${phase}:${entry.turn}:action:${actor}:${offset}:${message}`
                             )
                         );
                         actionsInserted = true;
@@ -214,14 +214,8 @@ export function WerewolfGameBoard({
 
                 maybeInsertActions();
 
-                if (
-                    session.me?.id &&
-                    entry.private &&
-                    typeof entry.private === "object"
-                ) {
-                    const privateMessages = (
-                        entry.private as Record<string, unknown>
-                    )[session.me.id];
+                if (session.me?.id && entry.private) {
+                    const privateMessages = entry.private[session.me.id];
                     if (Array.isArray(privateMessages)) {
                         privateMessages.forEach(
                             (msg: unknown, privateIdx: number) => {
@@ -430,6 +424,9 @@ export function WerewolfGameBoard({
                         <PackPanel
                             members={session.packMembers ?? []}
                             chat={session.teamChat ?? []}
+                            onSend={(msg: string) =>
+                                actionsControls?.submitAction?.("pack_chat", msg)
+                            }
                         />
                     )}
                 </aside>
