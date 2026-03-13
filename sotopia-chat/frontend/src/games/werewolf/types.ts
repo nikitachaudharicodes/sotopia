@@ -11,8 +11,15 @@ export type SessionPhase =
     | "waiting"
     | "intro"
     | "day-discussion"
+    | "day_discussion"
     | "day-vote"
+    | "day_vote"
+    | "dawn_report"
     | "night"
+    | "night_werewolves"
+    | "night_seer"
+    | "night_witch"
+    | "twilight_execution"
     | "resolution"
     | "summary"
     | "ended"
@@ -55,6 +62,22 @@ export interface WitchOptions {
     pendingTarget?: string | null;
 }
 
+export interface WerewolfActionLog {
+    actor: string;
+    action_type: string;
+    argument: string;
+    recorded_at: number;
+}
+
+export interface WerewolfPhaseLogEntry {
+    phase: SessionPhase;
+    turn: number;
+    recorded_at: number;
+    public: string[];
+    private?: Record<string, string[]>;
+    actions: WerewolfActionLog[];
+}
+
 export interface WerewolfSessionState {
     sessionId: string;
     players: PlayerState[];
@@ -66,7 +89,7 @@ export interface WerewolfSessionState {
     gameOver?: boolean;
     winner?: string | null;
     winnerMessage?: string | null;
-    log?: Array<Record<string, unknown>>;
+    log?: WerewolfPhaseLogEntry[];
     hostId?: string;
     activePlayerId?: string | null;
     waitingForAction?: boolean;

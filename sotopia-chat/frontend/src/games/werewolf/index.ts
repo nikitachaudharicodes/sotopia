@@ -4,7 +4,15 @@ import { useWerewolfSession } from "@/games/werewolf/use-session";
 import { useWerewolfActions } from "@/games/werewolf/use-actions";
 import type { WerewolfSessionState } from "@/games/werewolf/types";
 import type { GameDefinition } from "@/core/types/game-module";
-import { ConsentCard } from "@/core/components/consent-card";
+
+// No-op consent component - consent is now integrated in the lobby
+function InlineConsent({ onAccept }: { onAccept: () => void }) {
+    // Auto-accept immediately - real consent is shown in the lobby
+    if (typeof window !== 'undefined') {
+        setTimeout(() => onAccept(), 0);
+    }
+    return null;
+}
 
 export const werewolfGame: GameDefinition<WerewolfSessionState> = {
     slug: "werewolf",
@@ -14,7 +22,7 @@ export const werewolfGame: GameDefinition<WerewolfSessionState> = {
     tags: ["social deduction", "LLM agents", "turn-based"],
     accentColor: "#9333ea",
     components: {
-        Consent: ConsentCard,
+        Consent: InlineConsent,
         Lobby: WerewolfLobby,
         GameBoard: WerewolfGameBoard,
     },
