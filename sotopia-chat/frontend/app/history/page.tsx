@@ -1,29 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import useSWR from "swr";
 import {
     fetchPersonalHistory,
     type PersonalHistoryResponse,
 } from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { getStoredUser } from "@/lib/auth-api";
+import { useRouter } from "next/navigation";
 
 export default function HistoryPage() {
-    const [participantId, setParticipantId] = useState("");
-    const [queryId, setQueryId] = useState<string | null>(null);
+    const router = useRouter();
+    const user = getStoredUser();
+    const participantId = user?.pk ?? null;
 
     const { data, error, isLoading } = useSWR<PersonalHistoryResponse>(
-        queryId ? ["history", queryId] : null,
-        () => fetchPersonalHistory(queryId as string),
+        participantId ? ["history", participantId] : null,
+        () => fetchPersonalHistory(participantId as string),
         { refreshInterval: 10000 }
     );
 
-    const submitSearch = (event: React.FormEvent) => {
-        event.preventDefault();
-        if (participantId.trim()) {
-            setQueryId(participantId.trim());
+    useEffect(() => {
+        if (typeof window !== "undefined" && !participantId) {
+            router.replace("/login");
         }
-    };
+    }, [participantId, router]);
+
+    if (!participantId) {
+        return (
+            <main className="mx-auto max-w-4xl px-4 py-10">
+                <p className="text-sm text-muted-foreground">Redirecting to login…</p>
+            </main>
+        );
+    }
 
     return (
         <main className="mx-auto max-w-4xl px-4 py-10">
@@ -31,32 +40,19 @@ export default function HistoryPage() {
                 <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
                     Match History
                 </p>
-                <h1 className="text-3xl font-semibold">Participant Timeline</h1>
+                <h1 className="text-3xl font-semibold">Your Game History</h1>
                 <p className="text-sm text-muted-foreground">
-                    Look up recent games for a specific participant or agent.
+                    Recent games you have played.
                 </p>
             </header>
 
-            <form onSubmit={submitSearch} className="mb-6 flex gap-2">
-                <input
-                    type="text"
-                    value={participantId}
-                    onChange={(e) => setParticipantId(e.target.value)}
-                    placeholder="Enter participant ID"
-                    className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-                <Button type="submit" disabled={!participantId.trim()}>
-                    Fetch History
-                </Button>
-            </form>
-
-            {isLoading && queryId && (
+            {isLoading && participantId && (
                 <div className="rounded-xl border border-border bg-card/60 p-4 text-sm text-muted-foreground">
                     Loading history…
                 </div>
             )}
 
-            {error && queryId && (
+            {error && participantId && (
                 <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
                     Failed to load history. Participant may have no recent games.
                 </div>
@@ -98,7 +94,7 @@ export default function HistoryPage() {
                                         Duration: {entry.durationSeconds.toFixed(0)}s
                                     </span>
                                     <span>
-                                        {new Date(entry.recordedAt * 1000).toLocaleString()}
+                                        {new Date(entry.recordedAt).toLocaleString()}
                                     </span>
                                 </div>
                             </li>
