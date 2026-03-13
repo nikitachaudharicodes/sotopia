@@ -3,6 +3,7 @@
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "next-themes";
 import type { ThemeProviderProps } from "next-themes/dist/types";
+import { AuthProvider } from "@/contexts/auth-context";
 
 export function Providers({
     children,
@@ -10,8 +11,10 @@ export function Providers({
 }: ThemeProviderProps) {
     return (
         <ThemeProvider {...themeProps}>
-            <Toaster position="top-right" />
-            {children}
+            <AuthProvider>
+                <Toaster position="top-right" />
+                {children}
+            </AuthProvider>
         </ThemeProvider>
     );
 }

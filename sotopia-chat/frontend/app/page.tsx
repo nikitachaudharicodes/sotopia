@@ -14,10 +14,13 @@ import {
     type TicketStatus,
 } from "@/lib/api";
 import { useIdentity } from "@/hooks/use-identity";
+import { useAuth } from "@/contexts/auth-context";
+import { AuthHeader } from "@/components/auth-header";
 
 export default function GamesLandingPage() {
     const router = useRouter();
     const identity = useIdentity();
+    const { user, isAuthenticated } = useAuth();
     const [selected, setSelected] = useState<string[]>([]);
     const [queueMessage, setQueueMessage] = useState<string | null>(null);
     const [queueError, setQueueError] = useState<string | null>(null);
@@ -156,12 +159,14 @@ export default function GamesLandingPage() {
     };
 
     return (
-        <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-12 px-6 py-16">
-            <section className="space-y-6 text-center">
-                <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
-                    Sotopia Social Game Arena
-                </p>
-                <h1 className="text-4xl font-semibold sm:text-5xl">
+        <>
+            <AuthHeader />
+            <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-12 px-6 py-16 pt-20">
+                <section className="space-y-6 text-center">
+                    <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+                        Sotopia Social Game Arena
+                    </p>
+                    <h1 className="text-4xl font-semibold sm:text-5xl">
                     Choose a research game to play with humans + LLM agents
                 </h1>
                 <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
@@ -180,76 +185,50 @@ export default function GamesLandingPage() {
             </section>
 
             <section className="rounded-2xl border border-border bg-card/60 p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                    <div className="flex-1 space-y-2">
-                        <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
-                            Your Arena Identity
-                        </p>
-                        <input
-                            type="text"
-                            value={
-                                identity.pendingParticipantId ||
-                                identity.identity?.participantId ||
-                                ""
-                            }
-                            onChange={(e) =>
-                                identity.setPendingParticipantId(e.target.value)
-                            }
-                            placeholder="Participant ID"
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        />
-                        <input
-                            type="text"
-                            value={
-                                identity.pendingDisplayName ||
-                                identity.identity?.displayName ||
-                                ""
-                            }
-                            onChange={(e) =>
-                                identity.setPendingDisplayName(e.target.value)
-                            }
-                            placeholder="Display name (optional)"
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        />
-                        {identity.identity && (
-                            <p className="text-xs text-muted-foreground">
-                                Signed in as {identity.identity.displayName} (
-                                {identity.identity.participantId})
+                {isAuthenticated && user ? (
+                    /* Logged in user - show their info */
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-1">
+                            <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+                                Welcome Back
                             </p>
-                        )}
-                    </div>
-                    <div className="flex gap-2">
-                        <Button
-                            onClick={() =>
-                                identity.register(
-                                    identity.pendingParticipantId ||
-                                        identity.identity?.participantId ||
-                                        queueParticipantId ||
-                                        "guest",
-                                    identity.pendingDisplayName ||
-                                        identity.identity?.displayName ||
-                                        undefined
-                                )
-                            }
-                            disabled={identity.registerLoading}
-                        >
-                            {identity.registerLoading ? "Saving…" : "Save Identity"}
-                        </Button>
-                        {identity.identity && (
+                            <p className="text-lg font-semibold">{user.username}</p>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <span>ELO: {user.elo_rating}</span>
+                                <span>Games: {user.games_played}</span>
+                                <span>Wins: {user.games_won}</span>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
                             <Button
-                                variant="ghost"
-                                onClick={identity.clearIdentity}
-                                className="text-muted-foreground"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push("/profile")}
                             >
-                                Clear
+                                View Profile
                             </Button>
-                        )}
+                        </div>
                     </div>
-                </div>
-                {identity.registerError && (
-                    <p className="mt-2 text-sm text-destructive">
-                        {identity.registerError}
-                    </p>
+                ) : (
+                    /* Guest mode - prompt to login */
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-1">
+                            <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+                                Guest Mode
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Sign in to track your progress and compete on the leaderboard
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button onClick={() => router.push("/login")}>
+                                Sign In
+                            </Button>
+                            <Button variant="outline" onClick={() => router.push("/register")}>
+                                Create Account
+                            </Button>
+                        </div>
+                    </div>
                 )}
             </section>
 
@@ -538,6 +517,7 @@ export default function GamesLandingPage() {
                     )}
                 </section>
             )}
-        </main>
+            </main>
+        </>
     );
 }
