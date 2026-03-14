@@ -187,3 +187,6 @@ sotopia-chat/frontend/.env.local.example
 
 # Frontend deployment diagram (local reference only)
 sotopia-chat/frontend/deployment-architecture
+# Local dev scripts (optional, not committed)
+scripts/start_local.sh
+scripts/stop_local.sh
