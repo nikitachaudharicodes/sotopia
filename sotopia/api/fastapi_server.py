@@ -218,7 +218,6 @@ class SimulationManager:
         max_turns: int = 20,
     ) -> WebSocketSotopiaSimulator:
         try:
-            # print(f"[create_simulator] Creating WebSocketSotopiaSimulator with env_id={env_id}, agent_ids={agent_ids}", flush=True)
             return WebSocketSotopiaSimulator(
                 env_id=env_id,
                 agent_ids=agent_ids,
@@ -230,9 +229,6 @@ class SimulationManager:
                 max_turns=max_turns,
             )
         except Exception as e:
-            print(f"[create_simulator] EXCEPTION: {type(e).__name__}: {e}", flush=True)
-            import traceback
-            traceback.print_exc()
             error_msg = f"Failed to create simulator: {e}"
             logger.error(error_msg)
             raise Exception(error_msg)
@@ -1085,8 +1081,6 @@ class SotopiaFastAPI(FastAPI):
                             if action_queue:
                                 await action_queue.put(start_msg.get("data", {}))
                         continue
-                    print("[ws_simulation] Received START_SIM message", flush=True)
-                    
                     # Extract game configuration
                     game_type = start_msg["data"].get("game_type", "sotopia")
                     human_agent_name = start_msg["data"].get("human_agent_name")
@@ -1107,12 +1101,9 @@ class SotopiaFastAPI(FastAPI):
                             human_agent_name or f"player_{human_agent_index}", 
                             game_type
                         )
-                        print(f"[ws_simulation] Human player set: {human_agent_name} (index: {human_agent_index}) for game: {game_type}", flush=True)
-                    
                     async with manager.state.start_simulation(token):
                         # Route to appropriate game runner based on game_type
                         if game_type == "werewolf":
-                            print("[ws_simulation] Running Werewolf game", flush=True)
                             await self._run_werewolf_game(
                                 websocket=websocket,
                                 token=token,
@@ -1124,7 +1115,6 @@ class SotopiaFastAPI(FastAPI):
                             )
                         else:
                             # Default: run standard Sotopia simulation
-                            print("[ws_simulation] Calling manager.create_simulator", flush=True)
                             simulator = await manager.create_simulator(
                                 env_id=start_msg["data"]["env_id"],
                                 agent_ids=start_msg["data"]["agent_ids"],

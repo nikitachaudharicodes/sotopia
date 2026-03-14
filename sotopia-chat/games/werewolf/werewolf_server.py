@@ -268,7 +268,7 @@ async def publish_game_state(
     if human_role.lower() == "witch":
         witch_options = {
             "can_save": bool(env.internal_state.get("witch_have_save", True)),
-            "can_poison": bool(env.internal_state.get("witch_have_posion", True)),
+            "can_poison": bool(env.internal_state.get("witch_have_poison", True)),
             "pending_target": env.internal_state.get("kill_target"),
         }
 
